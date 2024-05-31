@@ -1,25 +1,33 @@
-const pool = require("./config/db"); // Adjust the path to wherever your db.js is located
 
+const pool = require("./config/db");
+const fs = require("fs");
+const path = require("path");
+
+// Adjust the path to wherever your db.js is located
 async function initializeDatabase() {
-  await pool.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
-  await pool.query(
-    `CREATE TABLE IF NOT EXISTS users (
-      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-      name VARCHAR(100),
-      email VARCHAR(100),
-      password VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `,
-    (err, res) => {
+  // installing extension for random genrated id
+  try {
+    pool.connect((err, client, release) => {
       if (err) {
-        console.error(err);
-        return;
+        console.log("Could not connect to PostgreSQL server:", err);
       } else {
-        console.log("Table created successfully");
+        console.log("Connected to Database Successfully");
+        client.release();
       }
-    }
-  );
+    });
+
+    await pool.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+
+    const initSql = path.join(__dirname, "models", "init.sql");
+
+    const sql = fs.readFileSync(initSql, "utf-8");
+
+    await pool.query(sql);
+
+    console.log("Tables Initialized Successfully.");
+  } catch (error) {
+    console.log("Error While Initializing Tables", error);
+  }
 }
 
 module.exports = initializeDatabase;
