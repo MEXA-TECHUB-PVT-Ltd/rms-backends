@@ -83,10 +83,13 @@ const itemList = async (req, res, next) => {
     const perPage = Number.parseInt(req.query.perPage) || 10;
     const currentPage = Number.parseInt(req.query.currentPage) || 1;
     const searchName = req.query.name || '';
+    const searchCategory = req.query.product_category || '';
+    const searchVendorName = req.query.vendor_name || '';
+    const searchProductCatalog = req.query.product_catalog || '';
 
     try {
         // Construct the base query
-        let countQuery = 'SELECT COUNT(*) FROM item';
+        let countQuery = 'SELECT COUNT(*) FROM item i LEFT JOIN product_category pc ON i.product_category = pc.id LEFT JOIN item_preferred_vendor ipv ON i.id = ipv.item_id LEFT JOIN vendor v ON ipv.vendor_id = v.id';
         let fetchQuery = `SELECT 
                             i.id,
                             i.type,
@@ -107,12 +110,34 @@ const itemList = async (req, res, next) => {
                         LEFT JOIN item_preferred_vendor ipv ON i.id = ipv.item_id
                         LEFT JOIN vendor v ON ipv.vendor_id = v.id`;
 
-        // Add search condition if name is provided
+        // Add search conditions if name, product_category, vendor_name, or product_catalog are provided
         const queryParams = [];
+        let whereClauses = [];
+
         if (searchName) {
-            countQuery += ' WHERE i.name ILIKE $1';
-            fetchQuery += ' WHERE i.name ILIKE $1';
-            queryParams.push(searchName + '%');
+            whereClauses.push('i.name ILIKE $' + (queryParams.length + 1));
+            queryParams.push('%' + searchName + '%');
+        }
+
+        if (searchCategory) {
+            whereClauses.push('pc.name ILIKE $' + (queryParams.length + 1));
+            queryParams.push('%' + searchCategory + '%');
+        }
+
+        if (searchVendorName) {
+            whereClauses.push('v.vendor_display_name ILIKE $' + (queryParams.length + 1));
+            queryParams.push('%' + searchVendorName + '%');
+        }
+
+        if (searchProductCatalog) {
+            whereClauses.push('i.product_catalog = $' + (queryParams.length + 1));
+            queryParams.push(searchProductCatalog);
+        }
+
+        if (whereClauses.length > 0) {
+            const whereClause = ' WHERE ' + whereClauses.join(' AND ');
+            countQuery += whereClause;
+            fetchQuery += whereClause;
         }
 
         const countResult = await pool.query(countQuery, queryParams);
@@ -123,8 +148,8 @@ const itemList = async (req, res, next) => {
 
         // Fetch paginated data
         let result;
-        if (searchName) {
-            result = await pool.query(fetchQuery + ' GROUP BY i.id, pc.name, u1.unit, u2.unit LIMIT $2 OFFSET $3', [...queryParams, perPage, offset]);
+        if (queryParams.length > 0) {
+            result = await pool.query(fetchQuery + ' GROUP BY i.id, pc.name, u1.unit, u2.unit LIMIT $' + (queryParams.length + 1) + ' OFFSET $' + (queryParams.length + 2), [...queryParams, perPage, offset]);
         } else {
             result = await pool.query(fetchQuery + ' GROUP BY i.id, pc.name, u1.unit, u2.unit LIMIT $1 OFFSET $2', [perPage, offset]);
         }
