@@ -36,12 +36,20 @@ const unitsList = async (req, res, next) => {
 
         // Organize units by category
         const unitsByCategory = {};
-        result.rows.forEach(unit => {
+        // result.rows.forEach(unit => {
+        //     if (!unitsByCategory[unit.category]) {
+        //         unitsByCategory[unit.category] = [];
+        //     }
+        //     unitsByCategory[unit.category].push(unit);
+        // });
+
+        for (const unit of result.rows) {
             if (!unitsByCategory[unit.category]) {
                 unitsByCategory[unit.category] = [];
             }
             unitsByCategory[unit.category].push(unit);
-        });
+            // });
+        }
 
         // Count total units
         const totalUnits = result.rows.length;
@@ -57,8 +65,8 @@ const unitsList = async (req, res, next) => {
 
 const getUnitsByCategory = async (req, res, next) => {
     const { category } = req.query;
-    const perPage = parseInt(req.query.perPage) || 10;
-    const currentPage = parseInt(req.query.currentPage) || 1;
+    const perPage = Number.parseInt(req.query.perPage) || 10;
+    const currentPage = Number.parseInt(req.query.currentPage) || 1;
 
     // Validate category
     if (!validUnits[category]) {
@@ -68,7 +76,7 @@ const getUnitsByCategory = async (req, res, next) => {
     try {
         // Fetch total count of items for the given category
         const countResult = await pool.query('SELECT COUNT(*) FROM units WHERE category = $1', [category]);
-        const totalItems = parseInt(countResult.rows[0].count);
+        const totalItems = Number.parseInt(countResult.rows[0].count);
 
         // Calculate offset for pagination
         const offset = (currentPage - 1) * perPage;
