@@ -2,7 +2,8 @@ const { cloudinary } = require("../../config/cloudinary/index");
 
 // upload to cloudinary
 const uploadToCloudinary = async (path, folder) => {
-  try {
+  try { 
+
     const uploadResult = await cloudinary.uploader.upload(path, {
       folder: `RMS/${folder}`,
       allowed_formats: [],
@@ -33,6 +34,8 @@ const updateCloudinaryFile = async (path, public_id) => {
 
 // delete from cloudinary
 const deleteCloudinaryFile = async (public_id) => {
+
+  console.log("public ID", public_id)
   try {
     const deleteResult = await cloudinary.uploader.destroy(public_id, {
       resource_type: "image",
