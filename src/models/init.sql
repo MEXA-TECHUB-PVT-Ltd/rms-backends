@@ -59,18 +59,24 @@ CREATE TABLE
         updated_at TIMESTAMP DEFAULT NOW ()
     );
 
-CREATE TABLE IF NOT EXISTS units (
+CREATE TABLE IF NOT EXISTS item (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    category VARCHAR(50),
-    unit VARCHAR(50),
+    type VARCHAR(50) CHECK (type IN ('PRODUCT', 'SERVICE')),
+    name VARCHAR(255),
+    product_category UUID REFERENCES product_category(id),
+    product_units UUID REFERENCES units(id),
+    usage_unit UUID REFERENCES units(id),
+    product_catalog VARCHAR(50) CHECK (product_catalog IN ('CONSUMER', 'ASSETS')), 
+    description VARCHAR(50),
+    image VARCHAR(50),
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS product_category (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(50), 
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS item_preferred_vendor (
+    item_id UUID REFERENCES item(id),
+    vendor_id UUID REFERENCES vendor(id),
+    PRIMARY KEY (item_id, vendor_id)
 );
+ 
 
