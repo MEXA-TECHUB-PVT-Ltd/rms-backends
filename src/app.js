@@ -61,8 +61,6 @@ app.use(async (err, req, res, next) => {
       code: err.code || "INTERNAL_SERVER_ERROR",
       success: false,
       message: err.message || "Internal Server Error",
-      details: err.details || null,
-      path: req.path,
     },
   });
 });
