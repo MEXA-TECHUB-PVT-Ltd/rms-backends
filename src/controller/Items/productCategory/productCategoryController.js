@@ -22,8 +22,8 @@ const createProductCategory = async (req, res, next) => {
 };
 
 const getProductCategories = async (req, res, next) => {
-    const perPage = parseInt(req.query.perPage) || 10;
-    const currentPage = parseInt(req.query.currentPage) || 1;
+    const perPage = Number.parseInt(req.query.perPage) || 10;
+    const currentPage = Number.parseInt(req.query.currentPage) || 1;
     const searchName = req.query.name || '';
 
     try {
@@ -40,7 +40,7 @@ const getProductCategories = async (req, res, next) => {
         }
 
         const countResult = await pool.query(countQuery, queryParams);
-        const totalItems = parseInt(countResult.rows[0].count);
+        const totalItems = Number.parseInt(countResult.rows[0].count);
 
         // Calculate offset for pagination
         const offset = (currentPage - 1) * perPage;
