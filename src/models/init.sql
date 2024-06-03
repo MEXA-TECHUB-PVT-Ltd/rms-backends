@@ -1,4 +1,3 @@
-
 CREATE TABLE
     IF NOT EXISTS currency (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
