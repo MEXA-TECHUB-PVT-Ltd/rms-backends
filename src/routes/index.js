@@ -4,11 +4,10 @@ const currencyRoutes = require("./Vendor/Currency/currencyRoutes");
 const unitRoutes = require("./Items/Units/unitRoutes");
 const productCategoryRoutes = require("./Items/productCategory/productCategoryRoutes");
 const paymentTermRoutes = require("./Vendor/PaymentTerms/paymentTermRoutes");
-const vendorRoutes = require("./Vendor/vendorRoutes"); 
-const itemRoutes = require("./Items/itemRoutes"); 
-const fileUploadRoutes = require("./fileUpload/fileUploadRoutes"); 
 const vendorRoutes = require("./Vendor/vendorRoutes");
-
+const itemRoutes = require("./Items/itemRoutes");
+const fileUploadRoutes = require("./fileUpload/fileUploadRoutes");
+const purchaseRequisitionRoutes = require("./PurchaseRequisition/purchaseRequisitionRoutes");
 
 router.use("/currency", currencyRoutes);
 router.use("/payment-term", paymentTermRoutes);
@@ -17,5 +16,6 @@ router.use("/units", unitRoutes);
 router.use("/product/category", productCategoryRoutes);
 router.use("/item", itemRoutes);
 router.use("/file", fileUploadRoutes);
+router.use("/purchase-requisition", purchaseRequisitionRoutes);
 
 module.exports = router;
