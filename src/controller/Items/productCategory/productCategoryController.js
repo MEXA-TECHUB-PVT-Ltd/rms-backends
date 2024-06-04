@@ -32,7 +32,7 @@ const getProductCategories = async (req, res, next) => {
         let fetchQuery = 'SELECT * FROM product_category';
 
         // Add search condition if name is provided
-        const queryParams = [];
+        let queryParams = [];
         if (searchName) {
             countQuery += ' WHERE name ILIKE $1';
             fetchQuery += ' WHERE name ILIKE $1';

@@ -111,31 +111,31 @@ const itemList = async (req, res, next) => {
                         LEFT JOIN vendor v ON ipv.vendor_id = v.id`;
 
         // Add search conditions if name, product_category, vendor_name, or product_catalog are provided
-        const queryParams = [];
+        let queryParams = [];
         let whereClauses = [];
 
         if (searchName) {
-            whereClauses.push('i.name ILIKE $' + (queryParams.length + 1));
+            whereClauses.push(`i.name ILIKE $` + (queryParams.length + 1));
             queryParams.push('%' + searchName + '%');
         }
 
         if (searchCategory) {
-            whereClauses.push('pc.name ILIKE $' + (queryParams.length + 1));
+            whereClauses.push(`pc.name ILIKE $` + (queryParams.length + 1));
             queryParams.push('%' + searchCategory + '%');
         }
 
         if (searchVendorName) {
-            whereClauses.push('v.vendor_display_name ILIKE $' + (queryParams.length + 1));
+            whereClauses.push(`v.vendor_display_name ILIKE $` + (queryParams.length + 1));
             queryParams.push('%' + searchVendorName + '%');
         }
 
         if (searchProductCatalog) {
-            whereClauses.push('i.product_catalog = $' + (queryParams.length + 1));
+            whereClauses.push(`i.product_catalog = $` + (queryParams.length + 1));
             queryParams.push(searchProductCatalog);
         }
 
         if (whereClauses.length > 0) {
-            const whereClause = ' WHERE ' + whereClauses.join(' AND ');
+            const whereClause = whereClauses.map(clause => clause.replace('$', '$' + (queryParams.length + 1))).join(' AND ');
             countQuery += whereClause;
             fetchQuery += whereClause;
         }
