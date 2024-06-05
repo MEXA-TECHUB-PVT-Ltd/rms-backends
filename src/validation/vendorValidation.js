@@ -65,6 +65,8 @@ const vendorSchema = {
       }),
     contact_person: Joi.string().allow(null, ""),
     document: Joi.object().allow(null, ""),
+    cnic_front_img: Joi.object().allow(null, ""),
+    cnic_back_img: Joi.object().allow(null, ""),
   }),
 };
 

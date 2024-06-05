@@ -2,6 +2,7 @@ const pool = require("../../config/db");
 const {
   uploadToCloudinary,
   updateCloudinaryFile,
+  deleteCloudinaryFile,
 } = require("../../utilities/cloudinary");
 const { pagination } = require("../../utilities/pagination");
 const { responseSender } = require("../../utilities/responseHandlers");
@@ -22,6 +23,27 @@ const createPurchaseRequisition = async (req, res, next) => {
   } = req.body;
 
   try {
+    await pool.query(`BEGIN`);
+
+    for (const item of JSON.parse(items)) {
+      if (
+        !item.item_id ||
+        item.available_stock === undefined ||
+        item.required_quantity === undefined ||
+        item.price === undefined ||
+        !Array.isArray(item.preffered_vendor_ids) ||
+        item.preffered_vendor_ids.length === 0
+      ) {
+        await pool.query("ROLLBACK");
+        return responseSender(
+          res,
+          400,
+          false,
+          "All item fields must be filled."
+        );
+      }
+    }
+
     let purchase_item_ids = [];
 
     for (const item of JSON.parse(items)) {
@@ -32,11 +54,12 @@ const createPurchaseRequisition = async (req, res, next) => {
           item.available_stock,
           item.required_quantity,
           item.price,
-          item.preffered_vendor_id,
+          item.preffered_vendor_ids,
         ]
       );
 
       if (rowCount === 0) {
+        await pool.query(`ROLLBACK`);
         return responseSender(res, 400, false, "Item Not Added");
       }
 
@@ -71,8 +94,13 @@ const createPurchaseRequisition = async (req, res, next) => {
     );
 
     if (rowCount === 0) {
+      await deleteCloudinaryFile(uplodadDoc.public_id);
+      await pool.query("ROLLBACK");
       return responseSender(res, 400, false, "Purchase Requisition Not Added");
     }
+
+    await pool.query("COMMIT");
+
     return responseSender(
       res,
       201,
@@ -81,6 +109,7 @@ const createPurchaseRequisition = async (req, res, next) => {
       rows[0]
     );
   } catch (error) {
+    await pool.query("ROLLBACK");
     console.log(error);
     next(error);
   }
@@ -91,24 +120,32 @@ const getPurchaseRequisition = async (req, res, next) => {
   try {
     const { rows, rowCount } = await pool.query(
       `SELECT pr.*, 
-                json_agg(
-                    json_build_object(
-                        'id', pi.id, 
-                        'item_id', pi.item_id, 
-                        'available_stock', pi.available_stock, 
-                        'required_quantity', pi.required_quantity, 
-                        'price', pi.price, 
-                        'preffered_vendor_id', pi.preffered_vendor_id, 
-                        'preffered_vendor', v.vendor_display_name
-                    )
-                ) AS items_detail 
-         FROM purchase_requisition pr 
-         LEFT JOIN purchase_items pi 
-         ON pi.id::text = ANY(pr.purchase_item_ids) 
-         LEFT JOIN vendor v 
-         ON v.id = pi.preffered_vendor_id
-         WHERE pr.id = $1 
-         GROUP BY pr.id`,
+      json_agg(
+          json_build_object(
+              'id', pi.id, 
+              'item_id', pi.item_id, 
+              'available_stock', pi.available_stock, 
+              'required_quantity', pi.required_quantity, 
+              'price', pi.price, 
+              'preffered_vendor', (
+                  SELECT json_agg(
+                      json_build_object(
+                          'id', v.id, 
+                          'vendor_display_name', v.vendor_display_name,
+                          'vendor_email', v.email,
+                          'vendor_phone_no', v.phone_no
+                      )
+                  )
+                  FROM vendor v 
+                  WHERE v.id::text = ANY(pi.preffered_vendor_ids)
+              )
+          )
+      ) AS items_detail 
+  FROM purchase_requisition pr 
+  LEFT JOIN purchase_items pi 
+  ON pi.id::text = ANY(pr.purchase_item_ids) 
+  WHERE pr.id = $1
+  GROUP BY pr.id`,
       [id]
     );
 
@@ -179,27 +216,36 @@ const getAllPurchaseRequisition = async (req, res, next) => {
 
   try {
     const query = `
-        SELECT pr.*, 
-               json_agg(
-                   json_build_object(
-                       'id', pi.id, 
-                       'item_id', pi.item_id, 
-                       'available_stock', pi.available_stock, 
-                       'required_quantity', pi.required_quantity, 
-                       'price', pi.price, 
-                       'preffered_vendor_id', pi.preffered_vendor_id, 
-                       'preffered_vendor', v.vendor_display_name
-                   )
-               ) AS items_detail 
-        FROM purchase_requisition pr 
-        LEFT JOIN purchase_items pi 
-        ON pi.id::text = ANY(pr.purchase_item_ids) 
-        LEFT JOIN vendor v 
-        ON v.id = pi.preffered_vendor_id
-        ${whereClause}
-        GROUP BY pr.id
-        ORDER BY ${sortField} ${sortOrder}
-        LIMIT $${index} OFFSET $${index + 1}`;
+    SELECT pr.*, 
+    json_agg(
+        json_build_object(
+            'id', pi.id, 
+            'item_id', pi.item_id, 
+            'available_stock', pi.available_stock, 
+            'required_quantity', pi.required_quantity, 
+            'price', pi.price, 
+            'preffered_vendor', (
+                SELECT json_agg(
+                    json_build_object(
+                        'id', v.id, 
+                        'vendor_display_name', v.vendor_display_name,
+                        'vendor_email', v.email,
+                        'vendor_phone_no', v.phone_no
+                    )
+                )
+                FROM vendor v 
+                WHERE v.id::text = ANY(pi.preffered_vendor_ids)
+            )
+        )
+    ) AS items_detail 
+FROM purchase_requisition pr 
+LEFT JOIN purchase_items pi 
+ON pi.id::text = ANY(pr.purchase_item_ids) 
+${whereClause}
+GROUP BY pr.id
+ORDER BY ${sortField} ${sortOrder}
+LIMIT $1 OFFSET $2;
+`;
 
     const { rows, rowCount } = await pool.query(query, [
       ...values,
@@ -245,6 +291,7 @@ const updatePurchaseRequisition = async (req, res, next) => {
   const { id } = req.params;
 
   try {
+    // Check if the purchase requisition exists
     const { rows: existingRows, rowCount } = await pool.query(
       `SELECT * FROM purchase_requisition WHERE id = $1`,
       [id]
@@ -318,117 +365,152 @@ const updatePurchaseRequisition = async (req, res, next) => {
       index++;
     }
 
+    let updateDoc = null;
+
     if (req.file) {
       const doc = existingRows[0]?.document;
       if (doc) {
-        const updateDoc = await updateCloudinaryFile(
-          req.file.path,
-          doc.public_id
-        );
+        updateDoc = await updateCloudinaryFile(req.file.path, doc.public_id);
         fields.push(`document = $${index}`);
         values.push(updateDoc);
         index++;
       } else {
-        const uploadDoc = await uploadToCloudinary(
+        updateDoc = await uploadToCloudinary(
           req.file.path,
           "Purchase Requisition"
         );
         fields.push(`document = $${index}`);
-        values.push(uploadDoc);
+        values.push(updateDoc);
         index++;
       }
     }
 
-    if (fields.length > 0) {
-      const updatePurchaseRequisitionQuery = `
-          UPDATE purchase_requisition
-          SET ${fields.join(", ")}
-          WHERE id = $${index}
-          RETURNING *;
-        `;
-      values.push(id);
-      await pool.query(updatePurchaseRequisitionQuery, values);
-    }
+    // Start the transaction
+    await pool.query("BEGIN");
 
     if (items && items.length > 0) {
       for (const item of JSON.parse(items)) {
-        const {
-          id: itemId,
-          item_id,
-          available_stock,
-          required_quantity,
-          price,
-          preffered_vendor_id,
-        } = item;
-
-        const itemFields = [];
-        const itemValues = [];
-        let itemIndex = 1;
-
-        if (item_id) {
-          itemFields.push(`item_id = $${itemIndex}`);
-          itemValues.push(item_id);
-          itemIndex++;
+        if (
+          !item.item_id ||
+          item.available_stock === undefined ||
+          item.required_quantity === undefined ||
+          item.price === undefined ||
+          !Array.isArray(item.preffered_vendor_ids) ||
+          item.preffered_vendor_ids.length === 0
+        ) {
+          await pool.query("ROLLBACK");
+          return responseSender(
+            res,
+            400,
+            false,
+            "All item fields must be filled."
+          );
         }
+      }
 
-        if (available_stock !== undefined) {
-          itemFields.push(`available_stock = $${itemIndex}`);
-          itemValues.push(available_stock);
-          itemIndex++;
-        }
+      // Delete existing items
+      await pool.query(
+        `DELETE FROM purchase_items WHERE id::text = ANY(
+          SELECT unnest(purchase_item_ids) FROM purchase_requisition WHERE id = $1
+        )`,
+        [id]
+      );
 
-        if (required_quantity !== undefined) {
-          itemFields.push(`required_quantity = $${itemIndex}`);
-          itemValues.push(required_quantity);
-          itemIndex++;
-        }
+      // Insert new items and collect their IDs
+      const newItems = [];
+      if (items && items.length > 0) {
+        for (const item of JSON.parse(items)) {
+          const {
+            item_id,
+            available_stock,
+            required_quantity,
+            price,
+            preffered_vendor_ids,
+          } = item;
 
-        if (price !== undefined) {
-          itemFields.push(`price = $${itemIndex}`);
-          itemValues.push(price);
-          itemIndex++;
-        }
+          const insertItemQuery = `
+        INSERT INTO purchase_items (
+            item_id,
+            available_stock,
+            required_quantity,
+              price,
+              preffered_vendor_ids
+            ) VALUES ($1, $2, $3, $4, $5)
+            RETURNING id;
+          `;
 
-        if (preffered_vendor_id) {
-          itemFields.push(`preffered_vendor_ids = $${itemIndex}`);
-          itemValues.push(preffered_vendor_id);
-          itemIndex++;
-        }
+          const { rows } = await pool.query(insertItemQuery, [
+            item_id,
+            available_stock,
+            required_quantity,
+            price,
+            preffered_vendor_ids,
+          ]);
 
-        if (itemFields.length > 0) {
-          itemFields.push(`updated_at = NOW()`);
-          const updatePurchaseItemsQuery = `
-              UPDATE purchase_items
-              SET ${itemFields.join(", ")}
-              WHERE id = $${itemIndex}
-              RETURNING *;
-            `;
-          itemValues.push(itemId);
-          await pool.query(updatePurchaseItemsQuery, itemValues);
+          newItems.push(rows[0].id);
         }
+      }
+
+      if (newItems.length > 0) {
+        fields.push(`purchase_item_ids = $${index}`);
+        values.push(newItems);
+        index++;
       }
     }
 
-    const updatedRequisitionQuery = `
-        SELECT pr.*, 
-               json_agg(
-                 json_build_object(
-                   'id', pi.id, 
-                   'item_id', pi.item_id, 
-                   'available_stock', pi.available_stock, 
-                   'required_quantity', pi.required_quantity, 
-                   'price', pi.price, 
-                   'preffered_vendor_id', pi.preffered_vendor_id, 
-                   'preffered_vendor', v.vendor_display_name
-                 )
-               ) AS items_detail
-        FROM purchase_requisition pr
-        LEFT JOIN purchase_items pi ON pi.id::text = ANY(pr.purchase_item_ids)
-        LEFT JOIN vendor v ON v.id = pi.preffered_vendor_id
-        WHERE pr.id = $1
-        GROUP BY pr.id;
+    const updatePurchaseRequisitionQuery = `
+        UPDATE purchase_requisition
+        SET ${fields.join(", ")}
+        WHERE id = $${index}
+        RETURNING *;
       `;
+
+    values.push(id);
     const { rows: updatedRequisitionRows } = await pool.query(
+      updatePurchaseRequisitionQuery,
+      values
+    );
+
+    if (updatedRequisitionRows.rowCount === 0) {
+      await pool.query("ROLLBACK");
+      if (updateDoc) {
+        await deleteCloudinaryFile(updateDoc.public_id);
+      }
+      return responseSender(res, 404, false, "Purchase Requisition not found");
+    }
+
+    await pool.query("COMMIT");
+
+    const updatedRequisitionQuery = `
+    SELECT pr.*, 
+    json_agg(
+        json_build_object(
+            'id', pi.id, 
+            'item_id', pi.item_id, 
+            'available_stock', pi.available_stock, 
+            'required_quantity', pi.required_quantity, 
+            'price', pi.price, 
+            'preffered_vendor', (
+                SELECT json_agg(
+                    json_build_object(
+                        'id', v.id, 
+                        'vendor_display_name', v.vendor_display_name,
+                        'vendor_email', v.email,
+                        'vendor_phone_no', v.phone_no
+                    )
+                )
+                FROM vendor v 
+                WHERE v.id::text = ANY(pi.preffered_vendor_ids)
+            )
+        )
+    ) AS items_detail 
+FROM purchase_requisition pr 
+LEFT JOIN purchase_items pi 
+ON pi.id::text = ANY(pr.purchase_item_ids) 
+WHERE pr.id = $1
+GROUP BY pr.id;
+      `;
+    const { rows: updatedRequisitionDetails } = await pool.query(
       updatedRequisitionQuery,
       [id]
     );
@@ -438,9 +520,10 @@ const updatePurchaseRequisition = async (req, res, next) => {
       200,
       true,
       "Purchase Requisition Updated",
-      updatedRequisitionRows[0]
+      updatedRequisitionDetails[0]
     );
   } catch (error) {
+    await pool.query("ROLLBACK");
     next(error);
   }
 };

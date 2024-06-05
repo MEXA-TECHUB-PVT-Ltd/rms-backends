@@ -23,8 +23,8 @@ CREATE TABLE
         last_name VARCHAR(255) DEFAULT NULL,
         company_name VARCHAR(255) DEFAULT NULL,
         vendor_display_name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        phone_no VARCHAR(255) NOT NULL,
+        email VARCHAR(255)  UNIQUE NOT NULL,
+        phone_no VARCHAR(255)  UNIQUE NOT NULL,
         work_no VARCHAR(255) DEFAULT NULL,
         country VARCHAR(255) DEFAULT NULL,
         address VARCHAR(255) NOT NULL,
@@ -36,6 +36,8 @@ CREATE TABLE
         currency_id UUID REFERENCES currency (id) ON DELETE CASCADE,
         payment_term_id UUID REFERENCES payment_term (id) ON DELETE CASCADE,
         document JSONB DEFAULT NULL,
+        cnic_front_img JSONB DEFAULT NULL,
+        cnic_back_img JSONB DEFAULT NULL,
         contact_person JSONB DEFAULT NULL,
         created_at TIMESTAMP DEFAULT NOW (),
         updated_at TIMESTAMP DEFAULT NOW ()
@@ -118,19 +120,6 @@ CREATE TABLE
         updated_at TIMESTAMP DEFAULT NOW ()
     );
 
--- CREATE TABLE
---     IF NOT EXISTS category (
---         id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
---         item_id UUID REFERENCES item (id) ON DELETE CASCADE,
---         available_stock NUMERIC NOT NULL,
---         required_quantity NUMERIC NOT NULL,
---         price NUMERIC NOT NULL,
---         preffered_vendor_ids TEXT[] NOT NULL,
---         category_name VARCHAR(50), 
---         created_at TIMESTAMP DEFAULT NOW (),
---         updated_at TIMESTAMP DEFAULT NOW ()
---     );
-
 CREATE TABLE
     IF NOT EXISTS category (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
@@ -138,6 +127,7 @@ CREATE TABLE
         created_at TIMESTAMP DEFAULT NOW (),
         updated_at TIMESTAMP DEFAULT NOW ()
     );
+
 
 CREATE TABLE
     IF NOT EXISTS recipes (

@@ -32,11 +32,38 @@ const createVendor = async (req, res, next) => {
   } = req.body;
 
   try {
-    // Upload to cloudinary if there's a file
-    let uploadDoc = null;
-    if (req.file) {
-      uploadDoc = await uploadToCloudinary(req.file.path, "Vendor");
+    const { rowCount: checkVendor } = await pool.query(
+      `SELECT * FROM vendor WHERE email = $1 OR phone_no = $2`,
+      [email, phone_no]
+    );
+
+    if (checkVendor > 0) {
+      return responseSender(
+        res,
+        409,
+        false,
+        "Vendor with this email or phone number already exists"
+      );
     }
+
+    // Upload files to Cloudinary
+    const uploadPromises = [];
+    ["document", "cnic_front_img", "cnic_back_img"].forEach((field) => {
+      if (req.files && req.files[field]) {
+        uploadPromises.push(
+          uploadToCloudinary(req.files[field][0].path, "Vendor")
+        );
+      } else {
+        uploadPromises.push(null);
+      }
+    });
+
+    // Wait for all uploads to complete
+    const [document, cnic_front_img, cnic_back_img] = await Promise.all(
+      uploadPromises
+    );
+
+    await pool.query("BEGIN");
 
     const { rows, rowCount } = await pool.query(
       `
@@ -44,13 +71,13 @@ const createVendor = async (req, res, next) => {
       v_type, provider_type, first_name, last_name, company_name, 
       vendor_display_name, email, phone_no, address, city, country, 
       work_no, zip_code, state, fax_number, shipping_address, 
-      currency_id, payment_term_id, contact_person, document
+      currency_id, payment_term_id, contact_person, document , cnic_front_img , cnic_back_img
     ) 
     VALUES (
       $1, $2, $3, $4, $5, 
       $6, $7, $8, $9, $10, 
       $11, $12, $13, $14, $15, 
-      $16, $17, $18, $19, $20
+      $16, $17, $18, $19, $20 , $21, $22
     ) 
     RETURNING *`,
       [
@@ -73,15 +100,23 @@ const createVendor = async (req, res, next) => {
         currency_id,
         payment_term_id,
         contact_person,
-        uploadDoc,
+        document,
+        cnic_front_img,
+        cnic_back_img,
       ]
     );
 
     if (rowCount === 0) {
-      await deleteCloudinaryFile(uploadDoc.public_id);
+      await pool.query("ROLLBACK");
+      await Promise.all([
+        cnic_front_img && deleteCloudinaryFile(cnic_front_img.public_id),
+        cnic_back_img && deleteCloudinaryFile(cnic_back_img.public_id),
+        document && deleteCloudinaryFile(document.public_id),
+      ]);
       return responseSender(res, 400, false, "Vendor Not Added");
     }
 
+    await pool.query("COMMIT");
     return responseSender(res, 201, true, "Vendor Added", rows[0]);
   } catch (error) {
     next(error);
@@ -346,21 +381,77 @@ const updateVendor = async (req, res, next) => {
       index++;
     }
 
-    if (req.file) {
-      const doc = rows[0]?.document;
-      if (doc) {
-        const updateDoc = await updateCloudinaryFile(
-          req.file.path,
-          doc.public_id
-        );
-        query += `document = $${index},`;
-        values.push(updateDoc);
-        index++;
-      } else {
-        const uploadDoc = await uploadToCloudinary(req.file.path, "Vendor");
-        query += `document = $${index},`;
-        values.push(uploadDoc);
-        index++;
+    if (req.files) {
+      if (req.files["cnic_front_img"] && req.files["cnic_front_img"][0]) {
+        const cnicFrontImg = rows[0]?.cnic_front_img;
+
+        if (cnicFrontImg) {
+          // If CNIC front image exists, update it
+          const updateCnicFrontImg = await updateCloudinaryFile(
+            req.files["cnic_front_img"][0].path,
+            cnicFrontImg.public_id
+          );
+          query += `cnic_front_img = $${index},`;
+          values.push(updateCnicFrontImg);
+          index++;
+        } else {
+          // If CNIC front image doesn't exist, upload it
+          const uploadCnicFrontImg = await uploadToCloudinary(
+            req.files["cnic_front_img"][0].path,
+            "Vendor"
+          );
+          query += `cnic_front_img = $${index}, `;
+          values.push(uploadCnicFrontImg);
+          index++;
+        }
+      }
+
+      if (req.files["cnic_back_img"] && req.files["cnic_back_img"][0]) {
+        const cnicBackImg = rows[0]?.cnic_back_img;
+
+        if (cnicBackImg) {
+          // If CNIC back image exists, update it
+          const updateCnicBackImg = await updateCloudinaryFile(
+            req.files["cnic_back_img"][0].path,
+            cnicBackImg.public_id
+          );
+          query += `cnic_back_img = $${index},`;
+          values.push(updateCnicBackImg);
+          index++;
+        } else {
+          // If CNIC back image doesn't exist, upload it
+          const uploadCnicBackImg = await uploadToCloudinary(
+            req.files["cnic_back_img"][0].path,
+            "Vendor"
+          );
+          query += `cnic_back_img = $${index}, `;
+          values.push(uploadCnicBackImg);
+          index++;
+        }
+      }
+
+      if (req.files["document"] && req.files["document"][0]) {
+        const document = rows[0]?.document;
+
+        if (document) {
+          // If document exists, update it
+          const updateDocument = await updateCloudinaryFile(
+            req.files["document"][0].path,
+            document.public_id
+          );
+          query += `document = $${index},`;
+          values.push(updateDocument);
+          index++;
+        } else {
+          // If document doesn't exist, upload it
+          const uploadDocument = await uploadToCloudinary(
+            req.files["document"][0].path,
+            "Vendor"
+          );
+          query += `document = $${index}, `;
+          values.push(uploadDocument);
+          index++;
+        }
       }
     }
 
@@ -369,14 +460,13 @@ const updateVendor = async (req, res, next) => {
     query += ` WHERE id = $${index} RETURNING *`;
     values.push(id);
 
-    console.log(query);
-
     const { rows: vendor, rowCount: vendorCount } = await pool.query(
       query,
       values
     );
 
     if (vendorCount === 0) {
+      await pool.query("ROLLBACK");
       return responseSender(res, 404, false, "Vendor not Found", null, req);
     }
 
