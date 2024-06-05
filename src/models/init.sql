@@ -84,6 +84,39 @@ CREATE TABLE
         PRIMARY KEY (item_id, vendor_id)
     );
 
+
+    CREATE TABLE
+    IF NOT EXISTS purchase_items(
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+        item_id UUID REFERENCES item (id) ON DELETE CASCADE,
+        available_stock NUMERIC NOT NULL,
+        required_quantity NUMERIC NOT NULL,
+        price NUMERIC NOT NULL,
+        preffered_vendor_ids  TEXT[] NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW (),
+        updated_at TIMESTAMP DEFAULT NOW ()
+    );
+
+
+CREATE TABLE
+    IF NOT EXISTS purchase_requisition (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+        pr_number VARCHAR(255) NOT NULL,
+        status VARCHAR(255) CHECK (status IN ('ACCEPTED', 'REJECTED', 'DRAFT' , 'PENDING')),
+        pr_detail VARCHAR(255) DEFAULT NULL,
+        priority VARCHAR(255) NOT NULL CHECK (priority IN ('HIGH', 'MEDIUM', 'LOW')),
+        requested_by VARCHAR(255) NOT NULL,
+        requested_date TIMESTAMP NOT  NULL,
+        required_date TIMESTAMP NOT NULL,
+        shipment_preferences VARCHAR(255) DEFAULT NULL,
+        document JSONB DEFAULT NULL,
+        delivery_address VARCHAR(255) NOT NULL,
+        purchase_item_ids TEXT[] NOT NULL,
+        total_amount VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW (),
+        updated_at TIMESTAMP DEFAULT NOW ()
+    );
+
 CREATE TABLE
     IF NOT EXISTS category (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
