@@ -24,7 +24,7 @@ const uploadFile = async (req, res, next) => {
 };
 
 const deleteFile = async (req, res, next) => {
-  
+
     try {
         const { public_id } = req.query;
 
