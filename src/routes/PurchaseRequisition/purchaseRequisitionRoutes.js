@@ -4,6 +4,7 @@ const {
   getPurchaseRequisition,
   deletePurchaseRequisition,
   getAllPurchaseRequisition,
+  updatePurchaseRequisition,
 } = require("../../controller/PurchaseRequisition/purchaseRequisitionController");
 const upload = require("../../middleware/multer");
 const {
@@ -22,6 +23,7 @@ router
   );
 router.route("/").get(getAllPurchaseRequisition);
 router.route("/:id").get(getPurchaseRequisition);
+router.route("/:id").put(upload.single("document"), updatePurchaseRequisition);
 router.route("/:id").delete(deletePurchaseRequisition);
 
 module.exports = router;

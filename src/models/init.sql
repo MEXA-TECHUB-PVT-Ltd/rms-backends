@@ -88,7 +88,7 @@ CREATE TABLE
         available_stock NUMERIC NOT NULL,
         required_quantity NUMERIC NOT NULL,
         price NUMERIC NOT NULL,
-        preffered_vendor_id UUID REFERENCES vendor (id) ON DELETE CASCADE,
+        preffered_vendor_ids TEXT[] NOT NULL,
         created_at TIMESTAMP DEFAULT NOW (),
         updated_at TIMESTAMP DEFAULT NOW ()
     );
