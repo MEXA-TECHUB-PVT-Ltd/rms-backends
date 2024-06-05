@@ -10,7 +10,7 @@ const purchaseRequisitionShema = {
     priority: Joi.string().valid("HIGH", "MEDIUM", "LOW").required(),
     requested_by: Joi.string().required(),
     requested_date: Joi.date().required(),
-    requirued_date: Joi.date().required(),
+    required_date: Joi.date().required(),
     shipment_preferences: Joi.string().optional(),
     delivery_address: Joi.string().required(),
     items: Joi.string().required(),
