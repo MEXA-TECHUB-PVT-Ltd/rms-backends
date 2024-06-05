@@ -46,6 +46,7 @@ CREATE TABLE
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
         category VARCHAR(50),
         unit VARCHAR(50),
+        quantity INTEGER,
         created_at TIMESTAMP DEFAULT NOW (),
         updated_at TIMESTAMP DEFAULT NOW ()
     );
@@ -117,20 +118,28 @@ CREATE TABLE
         updated_at TIMESTAMP DEFAULT NOW ()
     );
 
+-- CREATE TABLE
+--     IF NOT EXISTS category (
+--         id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+--         item_id UUID REFERENCES item (id) ON DELETE CASCADE,
+--         available_stock NUMERIC NOT NULL,
+--         required_quantity NUMERIC NOT NULL,
+--         price NUMERIC NOT NULL,
+--         preffered_vendor_ids TEXT[] NOT NULL,
+--         category_name VARCHAR(50), 
+--         created_at TIMESTAMP DEFAULT NOW (),
+--         updated_at TIMESTAMP DEFAULT NOW ()
+--     );
+
 CREATE TABLE
     IF NOT EXISTS category (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
-        item_id UUID REFERENCES item (id) ON DELETE CASCADE,
-        available_stock NUMERIC NOT NULL,
-        required_quantity NUMERIC NOT NULL,
-        price NUMERIC NOT NULL,
-        preffered_vendor_ids TEXT[] NOT NULL,
-        category_name VARCHAR(50), 
+        category_name VARCHAR(50),
         created_at TIMESTAMP DEFAULT NOW (),
         updated_at TIMESTAMP DEFAULT NOW ()
     );
 
-    CREATE TABLE
+CREATE TABLE
     IF NOT EXISTS recipes (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         recipe_name VARCHAR(50), 

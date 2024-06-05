@@ -1,11 +1,18 @@
 const { Router } = require("express");
 const {
-    createRecipe, 
-} = require("../../controller/receipes/recipeController"); 
+    createRecipe,
+    recipesList,
+    specificRecipe,
+    updateRecipe,
+    deleteRecipe
+} = require("../../controller/receipes/recipeController");
 
 const router = Router();
 
-
-router.route("/create").post(createRecipe); 
+router.route("/create").post(createRecipe);
+router.route("/list").get(recipesList);
+router.route("/specific").get(specificRecipe);
+router.route("/update").put(updateRecipe);
+router.route("/delete").delete(deleteRecipe);
 
 module.exports = router;

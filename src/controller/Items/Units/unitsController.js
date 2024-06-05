@@ -3,30 +3,49 @@ const { responseSender } = require("../../../utilities/responseHandlers");
 const { pagination } = require('../../../utilities/pagination');
 
 const validUnits = {
-    mass: ['kg', 'g', 'mg', 'lb', 'oz', 'tonne', 'stone'],
-    volume: ['l', 'ml', 'cm³', 'gal', 'qt', 'pt', 'cup', 'fl oz'],
-    quantity: ['dozen', 'gross', 'ream', 'score', 'mol', 'each']
+    mass: ['kg', 'g', 'mg'],
+    volume: ['l', 'ml'],
+    quantity: ['packs', 'bottles', 'dozen'] // Any number can be given as a unit
 };
 
 const createUnits = async (req, res, next) => {
-    const { category, unit } = req.body;
+    const { category, unit, quantity } = req.body;
 
-    // Validate category and unit
-    if (!validUnits[category]) {
-        return responseSender(res, 422, false, "Invalid category, Category can be only mass, volume and quantity");
+    if (!category || !unit) {
+        return responseSender(res, 422, false, "Category and unit are required");
     }
 
-    if (!validUnits[category].includes(unit)) {
-        return responseSender(res, 422, false, "Invalid unit");
+    const validCategories = Object.keys(validUnits);
+    if (!validCategories.includes(category)) {
+        return responseSender(res, 422, false, "Invalid category. Must be 'mass', 'liquid', or 'quantity'");
+    }
+
+    if (category === 'quantity') {
+        // Check if the unit is valid for 'quantity' category
+        if (!validUnits[category].includes(unit)) {
+            return responseSender(res, 422, false, `Invalid unit for category '${category}'. Valid units are: ${validUnits[category].join(', ')}`);
+        }
+
+        // Validate the quantity
+        const quantityAsNumber = Number(quantity);
+        if (!quantity || isNaN(quantityAsNumber) || quantityAsNumber <= 0) {
+            return responseSender(res, 422, false, "Invalid quantity. Quantity must be a positive number.");
+        }
+    } else if (!validUnits[category].includes(unit)) {
+        return responseSender(res, 422, false, `Invalid unit for category '${category}'. Valid units are: ${validUnits[category].join(', ')}`);
     }
 
     try {
-        const result = await pool.query('INSERT INTO units (category, unit) VALUES ($1, $2) RETURNING *', [category, unit]);
+        // Insert the unit into the database
+        const result = await pool.query(
+            'INSERT INTO units (category, unit, quantity) VALUES ($1, $2, $3) RETURNING *',
+            [category, unit, category === 'quantity' ? quantity : null]
+        );
+
         return responseSender(res, 201, true, "Unit Added", result.rows[0]);
     } catch (error) {
         next(error);
     }
-
 };
 
 const unitsList = async (req, res, next) => {
@@ -88,7 +107,31 @@ const getUnitsByCategory = async (req, res, next) => {
 };
 
 const updateUnit = async (req, res, next) => {
-    const { id, unit } = req.body;
+    const { id, category, unit, quantity } = req.body;
+
+    if (!category || !unit) {
+        return responseSender(res, 422, false, "Category and unit are required");
+    }
+
+    const validCategories = Object.keys(validUnits);
+    if (!validCategories.includes(category)) {
+        return responseSender(res, 422, false, "Invalid category. Must be 'mass', 'liquid', or 'quantity'");
+    }
+
+    if (category === 'quantity') {
+        // Check if the unit is valid for 'quantity' category
+        if (!validUnits[category].includes(unit)) {
+            return responseSender(res, 422, false, `Invalid unit for category '${category}'. Valid units are: ${validUnits[category].join(', ')}`);
+        }
+
+        // Validate the quantity
+        const quantityAsNumber = Number(quantity);
+        if (!quantity || isNaN(quantityAsNumber) || quantityAsNumber <= 0) {
+            return responseSender(res, 422, false, "Invalid quantity. Quantity must be a positive number.");
+        }
+    } else if (!validUnits[category].includes(unit)) {
+        return responseSender(res, 422, false, `Invalid unit for category '${category}'. Valid units are: ${validUnits[category].join(', ')}`);
+    }
 
     try {
         // Validate unit ID
@@ -98,7 +141,11 @@ const updateUnit = async (req, res, next) => {
         }
 
         // Update the unit
-        const result = await pool.query('UPDATE units SET unit = $1 WHERE id = $2 RETURNING *', [unit, id]);
+        const result = await pool.query(
+            'UPDATE units SET category = $1, unit = $2, quantity = $3, updated_at = NOW() WHERE id = $4 RETURNING *',
+            [category, unit, category === 'quantity' ? quantity : null, id]
+        );
+
         return responseSender(res, 200, true, "Unit Updated", result.rows[0]);
     } catch (error) {
         next(error);
