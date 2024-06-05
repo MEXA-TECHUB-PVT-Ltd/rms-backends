@@ -4,19 +4,19 @@ const { responseSender } = require("../../utilities/responseHandlers");
 const { pagination } = require('../../utilities/pagination');
 
 const createItem = async (req, res, next) => {
-    const { type, name, product_category, product_units, product_catalog, usage_unit, image, vendor_id, description } = req.body;
+    const { type, name, product_category, product_units, product_catalog, usage_unit, image, vendor_id, description, stock_in_hand, opening_stock_rate, reorder_unit, inventory_description } = req.body;
 
     if (type !== 'PRODUCT' && type !== 'SERVICE') {
         return responseSender(res, 422, false, "Invalid type. Must be PRODUCT or SERVICE.");
     }
 
     if (type === 'PRODUCT') {
-        if (!name || !product_category || !product_units || !product_catalog || !usage_unit || !image || !vendor_id) {
+        if (!name || !product_category || !product_units || !product_catalog || !usage_unit || !image || !vendor_id || !stock_in_hand || !opening_stock_rate || !reorder_unit || !inventory_description) {
             return responseSender(res, 422, false, "Missing required product attributes.");
         }
         // Check if there are any extra attributes present
         const extraAttributes = Object.keys(req.body).filter(attr =>
-            !['type', 'name', 'product_category', 'product_units', 'usage_unit', 'product_catalog', 'image', 'vendor_id'].includes(attr)
+            !['type', 'name', 'product_category', 'product_units', 'usage_unit', 'product_catalog', 'image', 'vendor_id', 'stock_in_hand', 'opening_stock_rate', 'reorder_unit', 'inventory_description'].includes(attr)
         );
         if (extraAttributes.length > 0) {
             return responseSender(res, 422, false, "Invalid attributes for PRODUCT type.");
@@ -38,9 +38,9 @@ const createItem = async (req, res, next) => {
         const id = uuidv4();
 
         await pool.query(
-            `INSERT INTO item (id, type, name, product_category, product_units, usage_unit, product_catalog, image, description) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-            [id, type, name, product_category, product_units, usage_unit, product_catalog, image, description]
+            `INSERT INTO item (id, type, name, product_category, product_units, usage_unit, product_catalog, description, stock_in_hand, opening_stock_rate, reorder_unit, inventory_description, image) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+            [id, type, name, product_category, product_units, usage_unit, product_catalog, description, stock_in_hand, opening_stock_rate, reorder_unit, inventory_description, image]
         );
 
         await pool.query(
@@ -56,6 +56,10 @@ const createItem = async (req, res, next) => {
                 i.product_catalog,
                 i.description,
                 i.image, 
+                i.stock_in_hand,
+                i.opening_stock_rate,
+                i.reorder_unit,
+                i.inventory_description,
                 pc.name AS product_category,
                 u1.unit AS product_units,
                 u2.unit AS usage_unit,
@@ -89,55 +93,66 @@ const itemList = async (req, res, next) => {
 
     try {
         // Construct the base query
-        let countQuery = 'SELECT COUNT(*) FROM item i LEFT JOIN product_category pc ON i.product_category = pc.id LEFT JOIN item_preferred_vendor ipv ON i.id = ipv.item_id LEFT JOIN vendor v ON ipv.vendor_id = v.id';
-        let fetchQuery = `SELECT 
-                            i.id,
-                            i.type,
-                            i.name AS name,
-                            i.product_catalog,
-                            i.description,
-                            i.image, 
-                            pc.name AS product_category,
-                            u1.unit AS product_units,
-                            u2.unit AS usage_unit,
-                            json_agg(v.*) AS vendors,
-                            i.created_at,
-                            i.updated_at
-                        FROM item i
-                        LEFT JOIN product_category pc ON i.product_category = pc.id
-                        LEFT JOIN units u1 ON i.product_units = u1.id
-                        LEFT JOIN units u2 ON i.usage_unit = u2.id
-                        LEFT JOIN item_preferred_vendor ipv ON i.id = ipv.item_id
-                        LEFT JOIN vendor v ON ipv.vendor_id = v.id`;
+        let countQuery = `
+            SELECT COUNT(*) 
+            FROM item i 
+            LEFT JOIN product_category pc ON i.product_category = pc.id 
+            LEFT JOIN item_preferred_vendor ipv ON i.id = ipv.item_id 
+            LEFT JOIN vendor v ON ipv.vendor_id = v.id`;
+
+        let fetchQuery = `
+            SELECT 
+                i.id,
+                i.type,
+                i.name AS name,
+                i.product_catalog,
+                i.description,
+                i.image, 
+                pc.name AS product_category,
+                u1.unit AS product_units,
+                u2.unit AS usage_unit,
+                i.stock_in_hand,
+                i.opening_stock_rate,
+                i.reorder_unit,
+                i.inventory_description,
+                json_agg(v.*) AS vendors,
+                i.created_at,
+                i.updated_at
+            FROM item i
+            LEFT JOIN product_category pc ON i.product_category = pc.id
+            LEFT JOIN units u1 ON i.product_units = u1.id
+            LEFT JOIN units u2 ON i.usage_unit = u2.id
+            LEFT JOIN item_preferred_vendor ipv ON i.id = ipv.item_id
+            LEFT JOIN vendor v ON ipv.vendor_id = v.id`;
 
         // Add search conditions if name, product_category, vendor_name, or product_catalog are provided
         let queryParams = [];
         let whereClauses = [];
 
         if (searchName) {
-            whereClauses.push(`i.name ILIKE $` + (queryParams.length + 1));
-            queryParams.push('%' + searchName + '%');
+            whereClauses.push(`i.name ILIKE $${queryParams.length + 1}`);
+            queryParams.push(`%${searchName}%`);
         }
 
         if (searchCategory) {
-            whereClauses.push(`pc.name ILIKE $` + (queryParams.length + 1));
-            queryParams.push('%' + searchCategory + '%');
+            whereClauses.push(`pc.name ILIKE $${queryParams.length + 1}`);
+            queryParams.push(`%${searchCategory}%`);
         }
 
         if (searchVendorName) {
-            whereClauses.push(`v.vendor_display_name ILIKE $` + (queryParams.length + 1));
-            queryParams.push('%' + searchVendorName + '%');
+            whereClauses.push(`v.vendor_display_name ILIKE $${queryParams.length + 1}`);
+            queryParams.push(`%${searchVendorName}%`);
         }
 
         if (searchProductCatalog) {
-            whereClauses.push(`i.product_catalog = $` + (queryParams.length + 1));
+            whereClauses.push(`i.product_catalog = $${queryParams.length + 1}`);
             queryParams.push(searchProductCatalog);
         }
 
         if (whereClauses.length > 0) {
-            const whereClause = whereClauses.map(clause => clause.replace('$', '$' + (queryParams.length + 1))).join(' AND ');
-            countQuery += whereClause;
-            fetchQuery += whereClause;
+            const whereClause = whereClauses.join(' AND ');
+            countQuery += ` WHERE ${whereClause}`;
+            fetchQuery += ` WHERE ${whereClause}`;
         }
 
         const countResult = await pool.query(countQuery, queryParams);
@@ -182,6 +197,10 @@ const specifiItem = async (req, res, next) => {
                 pc.name AS product_category,
                 u1.unit AS product_units,
                 u2.unit AS usage_unit,
+                i.stock_in_hand,
+                i.opening_stock_rate,
+                i.reorder_unit,
+                i.inventory_description,
                 json_agg(v.*) AS vendors,
                 i.created_at,
                 i.updated_at
@@ -208,7 +227,21 @@ const specifiItem = async (req, res, next) => {
 
 const updateItem = async (req, res, next) => {
     const itemId = req.query.id; // Assuming the item ID is provided as a query parameter
-    const { type, name, product_category, product_units, product_catalog, usage_unit, image, vendor_id, description } = req.body;
+    const {
+        type,
+        name,
+        product_category,
+        product_units,
+        product_catalog,
+        usage_unit,
+        image,
+        vendor_id,
+        description,
+        stock_in_hand,
+        opening_stock_rate,
+        reorder_unit,
+        inventory_description
+    } = req.body;
 
     try {
         // Fetch existing item to check if it exists
@@ -271,6 +304,26 @@ const updateItem = async (req, res, next) => {
             queryParams.push(description);
             index++;
         }
+        if (stock_in_hand) {
+            updateQuery += `stock_in_hand = $${index}, `;
+            queryParams.push(stock_in_hand);
+            index++;
+        }
+        if (opening_stock_rate) {
+            updateQuery += `opening_stock_rate = $${index}, `;
+            queryParams.push(opening_stock_rate);
+            index++;
+        }
+        if (reorder_unit) {
+            updateQuery += `reorder_unit = $${index}, `;
+            queryParams.push(reorder_unit);
+            index++;
+        }
+        if (inventory_description) {
+            updateQuery += `inventory_description = $${index}, `;
+            queryParams.push(inventory_description);
+            index++;
+        }
 
         // Remove trailing comma and space from the query
         updateQuery = updateQuery.slice(0, -2);
@@ -302,6 +355,10 @@ const updateItem = async (req, res, next) => {
                 pc.name AS product_category,
                 u1.unit AS product_units,
                 u2.unit AS usage_unit,
+                i.stock_in_hand,
+                i.opening_stock_rate,
+                i.reorder_unit,
+                i.inventory_description,
                 json_agg(v.*) AS vendors,
                 i.created_at,
                 i.updated_at

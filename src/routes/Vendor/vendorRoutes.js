@@ -17,7 +17,7 @@ const router = Router();
 router
   .route("/create")
   .post(
-    upload.array("document"),
+    upload.single("document"),
     validateBody(vendorSchema.createVendor),
     createVendor
   );

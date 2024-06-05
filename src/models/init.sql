@@ -68,6 +68,10 @@ CREATE TABLE
         usage_unit UUID REFERENCES units (id),
         product_catalog VARCHAR(50) CHECK (product_catalog IN ('CONSUMER', 'ASSETS')),
         description VARCHAR(50),
+        stock_in_hand INT NOT NULL,
+        opening_stock_rate INT NOT NULL,
+        reorder_unit INT NOT NULL,
+        inventory_description VARCHAR(50),
         image VARCHAR(50),
         created_at TIMESTAMP DEFAULT NOW (),
         updated_at TIMESTAMP DEFAULT NOW ()
@@ -80,35 +84,31 @@ CREATE TABLE
         PRIMARY KEY (item_id, vendor_id)
     );
 
-
 CREATE TABLE
-    IF NOT EXISTS purchase_items(
+    IF NOT EXISTS category (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
-        item_id UUID REFERENCES item (id) ON DELETE CASCADE,
-        available_stock NUMERIC NOT NULL,
-        required_quantity NUMERIC NOT NULL,
-        price NUMERIC NOT NULL,
-        preffered_vendor_id UUID REFERENCES vendor (id) ON DELETE CASCADE,
+        category_name VARCHAR(50), 
         created_at TIMESTAMP DEFAULT NOW (),
         updated_at TIMESTAMP DEFAULT NOW ()
     );
 
-
-CREATE TABLE
-    IF NOT EXISTS purchase_requisition (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
-        pr_number VARCHAR(255) NOT NULL,
-        status VARCHAR(255) CHECK (status IN ('ACCEPTED', 'REJECTED', 'DRAFT' , 'PENDING')),
-        pr_detail VARCHAR(255) DEFAULT NULL,
-        priority VARCHAR(255) NOT NULL CHECK (priority IN ('HIGH', 'MEDIUM', 'LOW')),
-        requested_by VARCHAR(255) NOT NULL,
-        requested_date TIMESTAMP NOT  NULL,
-        required_date TIMESTAMP NOT NULL,
-        shipment_preferences VARCHAR(255) DEFAULT NULL,
-        document JSONB DEFAULT NULL,
-        delivery_address VARCHAR(255) NOT NULL,
-        purchase_item_ids TEXT[] NOT NULL,
-        total_amount VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW (),
-        updated_at TIMESTAMP DEFAULT NOW ()
+    CREATE TABLE
+    IF NOT EXISTS recipes (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        recipe_name VARCHAR(50), 
+        category UUID REFERENCES category(id),
+        difficulty_level VARCHAR(50) CHECK (difficulty_level IN ('HIGH', 'MEDIUM', 'LOW')),
+        added_by VARCHAR(50),
+        price INT,
+        cooking_time INT,
+        selected_item UUID REFERENCES item(id),
+        nutritional_info VARCHAR(50),
+        allergen_info VARCHAR(50),
+        presentation_instructions VARCHAR(50),
+        equipment_needed VARCHAR(50),
+        side_order VARCHAR(50),
+        image VARCHAR(50),
+        preparation_instructions VARCHAR(50),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
     );

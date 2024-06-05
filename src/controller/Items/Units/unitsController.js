@@ -35,7 +35,7 @@ const unitsList = async (req, res, next) => {
         const result = await pool.query('SELECT * FROM units');
 
         // Organize units by category
-        const unitsByCategory = {}; 
+        const unitsByCategory = {};
 
         for (const unit of result.rows) {
             if (!unitsByCategory[unit.category]) {
