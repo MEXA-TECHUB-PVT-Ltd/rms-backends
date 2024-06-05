@@ -1,4 +1,3 @@
-const { object } = require("joi");
 const pool = require("../../config/db");
 const {
   uploadToCloudinary,
@@ -33,9 +32,13 @@ const createVendor = async (req, res, next) => {
 
   try {
     // Upload to cloudinary if there's a file
-    let uploadDoc = null;
-    if (req.file) {
-      uploadDoc = await uploadToCloudinary(req.file.path, "Vendor");
+    let uploadDoc = [];
+    if (req.files) {
+      const docPath = req.files.map((file) => file.path);
+      for (const path of docPath) {
+        const uploadDocument = await uploadToCloudinary(path, "Vendor");
+        uploadDoc.push(uploadDocument);
+      }
     }
 
     const { rows, rowCount } = await pool.query(
@@ -73,7 +76,7 @@ const createVendor = async (req, res, next) => {
         currency_id,
         payment_term_id,
         contact_person,
-        uploadDoc,
+        JSON.stringify(uploadDoc),
       ]
     );
 
@@ -118,6 +121,7 @@ const getVendors = async (req, res, next) => {
       sortOrder,
       search,
       first_name,
+      last_name,
       vendor_display_name,
       company_name,
       payment_term_id,
@@ -206,6 +210,7 @@ const getVendors = async (req, res, next) => {
     return responseSender(res, 200, true, "Vendors Retrieved", {
       vendors: rows,
       pagination: pagination(totalRowsResult.rows[0].count, limit, page),
+      totalCount: totalRowsResult.rows[0].count,
     });
   } catch (error) {
     next(error);
