@@ -39,6 +39,7 @@ CREATE TABLE
         cnic_front_img JSONB DEFAULT NULL,
         cnic_back_img JSONB DEFAULT NULL,
         contact_person JSONB DEFAULT NULL,
+        po_sending_status BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT NOW (),
         updated_at TIMESTAMP DEFAULT NOW ()
     );
@@ -149,3 +150,20 @@ CREATE TABLE
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
     );
+
+CREATE TABLE 
+    IF NOT EXISTS purchase_order (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+    purchase_order_number VARCHAR(255) NOT NULL,
+    purchase_requisition_id UUID NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW (),
+    updated_at TIMESTAMP DEFAULT NOW (),
+    UNIQUE(purchase_requisition_id)
+);  
+
+CREATE TABLE  IF NOT EXISTS purchase_order_preferred_vendors (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+    purchase_order_id UUID NOT NULL,
+    purchase_item_id UUID NOT NULL,
+    vendor_id UUID NOT NULL 
+);
