@@ -46,8 +46,6 @@ app.use((req, res, next) => {
     code: "ROUTE_NOT_FOUND",
     success: false,
     message: "This route does not exist.",
-    details:
-      "Oops! It seems like you took a wrong turn. The route you are trying to access does not exist in the system.",
   };
   next(notFoundError);
 });
