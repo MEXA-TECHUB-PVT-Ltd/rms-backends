@@ -49,33 +49,6 @@ CREATE TABLE IF NOT EXISTS payment_term (
 );
 
 
-CREATE TABLE IF NOT EXISTS vendor (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
-    v_type VARCHAR(255) NOT NULL CHECK (v_type IN ('SUPPLIER', 'STORE')),
-    provider_type VARCHAR(255) NOT NULL CHECK (provider_type IN ('SERVICE', 'PRODUCTS')),
-    first_name VARCHAR(255) DEFAULT NULL,
-    last_name VARCHAR(255) DEFAULT NULL,
-    company_name VARCHAR(255) DEFAULT NULL,
-    vendor_display_name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    phone_no VARCHAR(255) UNIQUE NOT NULL,
-    work_no VARCHAR(255) DEFAULT NULL,
-    country VARCHAR(255) DEFAULT NULL,
-    address VARCHAR(255) NOT NULL,
-    city VARCHAR(255) DEFAULT NULL,
-    state VARCHAR(255) DEFAULT NULL,
-    zip_code VARCHAR(255) DEFAULT NULL,
-    fax_number VARCHAR(255) DEFAULT NULL,
-    shipping_address VARCHAR(255) DEFAULT NULL,
-    currency_id UUID REFERENCES currency (id) ON DELETE CASCADE,
-    payment_term_id UUID REFERENCES payment_term (id) ON DELETE CASCADE,
-    document JSONB DEFAULT NULL,
-    cnic_front_img JSONB DEFAULT NULL,
-    cnic_back_img JSONB DEFAULT NULL,
-    contact_person JSONB DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT NOW (),
-    updated_at TIMESTAMP DEFAULT NOW ()
-);
 
 CREATE TABLE IF NOT EXISTS units (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
@@ -155,25 +128,6 @@ CREATE TABLE IF NOT EXISTS category (
     updated_at TIMESTAMP DEFAULT NOW ()
 );
 
-CREATE TABLE IF NOT EXISTS recipes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    recipe_name VARCHAR(50),
-    category UUID REFERENCES category(id),
-    difficulty_level VARCHAR(50) CHECK (difficulty_level IN ('HIGH', 'MEDIUM', 'LOW')),
-    added_by VARCHAR(50),
-    price INT,
-    cooking_time INT,
-    selected_item UUID REFERENCES item(id),
-    nutritional_info VARCHAR(50),
-    allergen_info VARCHAR(50),
-    presentation_instructions VARCHAR(50),
-    equipment_needed VARCHAR(50),
-    side_order VARCHAR(50),
-    image VARCHAR(50),
-    preparation_instructions VARCHAR(50),
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
 
 CREATE TABLE IF NOT EXISTS pr_comments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -229,7 +183,6 @@ CREATE TABLE IF NOT EXISTS pos(
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-<<<<<<< Updated upstream
 CREATE TABLE
     IF NOT EXISTS recipes (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
