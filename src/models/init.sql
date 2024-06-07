@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS currency (
     updated_at TIMESTAMP DEFAULT NOW ()
 );
 
-<<<<<<< Updated upstream
 CREATE TABLE
     IF NOT EXISTS vendor (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
@@ -41,14 +40,14 @@ CREATE TABLE
         created_at TIMESTAMP DEFAULT NOW (),
         updated_at TIMESTAMP DEFAULT NOW ()
     );
-=======
+
 CREATE TABLE IF NOT EXISTS payment_term (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
     payment_term_name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT NOW (),
     updated_at TIMESTAMP DEFAULT NOW ()
 );
->>>>>>> Stashed changes
+
 
 CREATE TABLE IF NOT EXISTS vendor (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
@@ -268,5 +267,4 @@ CREATE TABLE  IF NOT EXISTS purchase_order_preferred_vendors (
     purchase_item_id UUID NOT NULL,
     vendor_id UUID NOT NULL 
 );
-=======
->>>>>>> Stashed changes
+
