@@ -7,6 +7,6 @@ const {
 const router = Router();
 
 router.route("/get/all").get(purchaseOrder);
-router.route("/send/vendor/:id").post(updateVendorPOSendingStatus);
+router.route("/send/vendor").put(updateVendorPOSendingStatus);
 
 module.exports = router;

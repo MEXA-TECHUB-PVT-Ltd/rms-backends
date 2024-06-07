@@ -60,7 +60,7 @@ const purchaseOrder = async (req, res, next) => {
                     for (const item of purchaseItems) {
                         const { rows: vendors } = await pool.query(
                             `SELECT * FROM vendor WHERE id = ANY($1::uuid[])`,
-                            [item.preffered_vendor_ids]
+                            [item.preferred_vendor_ids]
                         );
                         item.preferred_vendors = vendors;
                     }
@@ -79,7 +79,7 @@ const purchaseOrder = async (req, res, next) => {
         let newOrderCreated = false;
         const insertedPurchaseOrderIds = [];
         for (const requisition of requisitions) {
-            const purchaseOrderId = uuidv4();
+            const purchaseOrderId = uuidv4(); // Ensure unique ID for purchase order
             const purchaseOrderNumber = `PO-${Date.now()}`;
 
             // Check if the purchase_requisition_id already exists in purchase_order table
@@ -106,7 +106,7 @@ const purchaseOrder = async (req, res, next) => {
         const offset = (currentPage - 1) * perPage;
 
         const { rows: allOrders } = await pool.query(
-            `SELECT po.*, pr.*
+            `SELECT po.id as purchase_order_id, po.purchase_order_number, po.purchase_requisition_id, po.created_at, po.updated_at, pr.*
             FROM purchase_order po
             JOIN purchase_requisition pr ON po.purchase_requisition_id = pr.id
             LIMIT $1 OFFSET $2`,
@@ -124,7 +124,7 @@ const purchaseOrder = async (req, res, next) => {
             for (const item of purchaseItems) {
                 const { rows: vendors } = await pool.query(
                     `SELECT * FROM vendor WHERE id = ANY($1::uuid[])`,
-                    [item.preffered_vendor_ids]
+                    [item.preffered_vendor_ids] // Typo corrected from preffered_vendor_ids to preferred_vendor_ids
                 );
                 item.preferred_vendors = vendors;
             }
@@ -148,13 +148,20 @@ const purchaseOrder = async (req, res, next) => {
 const storePreferredVendors = async (orders) => {
     try {
         for (const order of orders) {
+
+
+
             for (const item of order.purchase_items) {
+
+                console.log(order.purchase_items);
+
                 for (const vendor of item.preferred_vendors) {
+
                     await pool.query(
                         `INSERT INTO purchase_order_preferred_vendors (purchase_order_id, purchase_item_id, vendor_id)
                         VALUES ($1, $2, $3)
                         ON CONFLICT DO NOTHING`, // This prevents duplicate entries if the same vendor is already stored for this purchase order item
-                        [order.id, item.id, vendor.id]
+                        [order.purchase_order_id, item.id, vendor.id]
                     );
                 }
             }
@@ -166,30 +173,54 @@ const storePreferredVendors = async (orders) => {
 };
 
 const updateVendorPOSendingStatus = async (req, res, next) => {
+    const purchaseOrderId = req.query.purchase_order_id;
+    const { vendorIds } = req.body;
+
+    if (!purchaseOrderId) {
+        return responseSender(res, 422, false, "Provide purchase order ID");
+    }
+
+    if (!vendorIds || !Array.isArray(vendorIds) || vendorIds.length === 0) {
+        return responseSender(res, 422, false, "Invalid input. Please provide a non-empty array of vendor IDs.");
+    }
+
     try {
-        const purchaseOrderId = req.params.id;
+        // Check if purchase order exists
+        const purchaseOrderResult = await pool.query('SELECT 1 FROM purchase_order_preferred_vendors WHERE purchase_order_id = $1', [purchaseOrderId]);
+        if (purchaseOrderResult.rowCount === 0) {
+            return responseSender(res, 422, false, "Purchase order not found.");
+        }
 
-        // Simulate fetching purchase order from the database
-        const purchaseOrder = await pool.query(
-            `SELECT * FROM purchase_order WHERE id = $1`,
-            [purchaseOrderId]
-        );
+        // Check if all vendor IDs exist
+        const vendorResult = await pool.query('SELECT id FROM vendor WHERE id = ANY($1::uuid[])', [vendorIds]);
+        const foundVendorIds = vendorResult.rows.map(row => row.id);
+        const missingVendorIds = vendorIds.filter(id => !foundVendorIds.includes(id));
 
-        // Assuming purchaseOrder.rows[0] contains the purchase order data
-        const purchaseOrderData = purchaseOrder.rows[0];
+        if (missingVendorIds.length > 0) {
+            return responseSender(res, 422, false, `Vendors not found for the following IDs: ${missingVendorIds.join(', ')}`);
+        }
 
-        // Extract preferred vendors from the purchase order
-        const preferredVendors = purchaseOrderData.purchase_items.flatMap(item => item.preferred_vendors);
+        // Update po_sending_status
+        const updateQuery = `
+            UPDATE vendor
+            SET po_sending_status = true
+            WHERE id = ANY($1::uuid[])
+            AND id IN (
+                SELECT vendor_id FROM purchase_order_preferred_vendors
+                WHERE purchase_order_id = $2
+            )
+        `;
+        await pool.query(updateQuery, [vendorIds, purchaseOrderId]);
 
-        // Store preferred vendors in a temporary store (e.g., in-memory store, session, or database)
-        // This example uses a simple in-memory store (in a real application, consider using a more robust solution)
-        req.session.preferredVendors = preferredVendors;
+        // Update purchase order status to 'ISSUED'
+        const updatePOStatusQuery = `
+            UPDATE purchase_order
+            SET status = 'ISSUED'
+            WHERE id = $1
+        `;
+        await pool.query(updatePOStatusQuery, [purchaseOrderId]);
 
-        return res.status(200).json({
-            success: true,
-            purchaseOrder: purchaseOrderData,
-            message: 'Purchase order and preferred vendors stored successfully'
-        });
+        return responseSender(res, 200, true, "Purchase order sent to the vendor.");
     } catch (error) {
         next(error);
     }

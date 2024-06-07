@@ -48,8 +48,6 @@ CREATE TABLE IF NOT EXISTS payment_term (
     updated_at TIMESTAMP DEFAULT NOW ()
 );
 
-
-
 CREATE TABLE IF NOT EXISTS units (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
     category VARCHAR(50),
@@ -204,20 +202,38 @@ CREATE TABLE
         updated_at TIMESTAMP DEFAULT NOW()
     );
 
-CREATE TABLE 
+ CREATE TABLE 
     IF NOT EXISTS purchase_order (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
     purchase_order_number VARCHAR(255) NOT NULL,
     purchase_requisition_id UUID NOT NULL,
     created_at TIMESTAMP DEFAULT NOW (),
     updated_at TIMESTAMP DEFAULT NOW (),
+    status VARCHAR(255) DEFAULT 'DRAFT' CHECK (
+        status IN ('DRAFT', 'ISSUED', 'FULLY DELIVERED', 'PARTIALLY RECEIVED', 'RECEIVED', 'CANCELLED')
+    ), 
     UNIQUE(purchase_requisition_id)
-);  
+); 
 
 CREATE TABLE  IF NOT EXISTS purchase_order_preferred_vendors (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
     purchase_order_id UUID NOT NULL,
     purchase_item_id UUID NOT NULL,
     vendor_id UUID NOT NULL 
-);
+); 
 
+CREATE TABLE IF NOT EXISTS purchase_receives (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  purchase_order_id UUID NOT NULL REFERENCES purchase_order(id),
+  purchase_received_number VARCHAR(255) UNIQUE,
+  vendor_id UUID NOT NULL REFERENCES vendor(id),
+  item_id UUID NOT NULL,
+  total_quantity INTEGER NOT NULL,
+  quantity_received INTEGER NOT NULL,
+  remaining_quantity INTEGER GENERATED ALWAYS AS (total_quantity - quantity_received) STORED,
+  rate DECIMAL(10, 2),
+  total_cost DECIMAL(10, 2) GENERATED ALWAYS AS (quantity_received * rate) STORED,
+  remaining_item INTEGER,
+  received_date DATE NOT NULL,
+  description TEXT
+);

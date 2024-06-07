@@ -13,7 +13,7 @@ const purchaseRequisitionRoutes = require("./PurchaseRequisition/purchaseRequisi
 const purchaseOrderRoutes = require("./purchaseOrder/purchaseOrderRoutes");
 const commentsRoutes = require("./PurchaseRequisition/Comments/commentsRoutes");
 const couponRoutes = require("./POS/Coupon/couponRoutes");
-
+const purchaseReceivesRoutes = require("./purchaseReceives/purchaseReceivesRoutes");
 
 router.use("/currency", currencyRoutes);
 router.use("/payment-term", paymentTermRoutes);
@@ -28,6 +28,6 @@ router.use("/purchase-requisition", purchaseRequisitionRoutes);
 router.use("/purchase/order", purchaseOrderRoutes);
 router.use("/comment", commentsRoutes);
 router.use("/coupon", couponRoutes);
-
+router.use("/purchase/receives", purchaseReceivesRoutes);
 
 module.exports = router;
