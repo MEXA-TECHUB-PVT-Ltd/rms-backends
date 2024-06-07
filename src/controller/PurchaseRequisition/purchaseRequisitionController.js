@@ -25,6 +25,21 @@ const createPurchaseRequisition = async (req, res, next) => {
   try {
     await pool.query(`BEGIN`);
 
+    const { rowCount: checkPrNumber } = await pool.query(
+      `SELECT * FROM purchase_requisition WHERE pr_number = $1`,
+      [pr_number]
+    );
+
+    if (checkPrNumber > 0) {
+      await pool.query(`ROLLBACK`);
+      return responseSender(
+        res,
+        400,
+        false,
+        "Purchase Requisition Number Already Exists"
+      );
+    }
+
     for (const item of JSON.parse(items)) {
       if (
         !item.item_id ||

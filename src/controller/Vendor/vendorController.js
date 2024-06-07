@@ -1,4 +1,3 @@
-const { object } = require("joi");
 const pool = require("../../config/db");
 const {
   uploadToCloudinary,
