@@ -152,6 +152,7 @@ const getVendors = async (req, res, next) => {
       sortOrder,
       search,
       first_name,
+      last_name,
       vendor_display_name,
       company_name,
       payment_term_id,
