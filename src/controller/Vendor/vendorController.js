@@ -145,18 +145,8 @@ const getVendor = async (req, res, next) => {
 
 const getVendors = async (req, res, next) => {
   try {
-    let {
-      page,
-      limit,
-      sortField,
-      sortOrder,
-      search,
-      first_name,
-      last_name,
-      vendor_display_name,
-      company_name,
-      payment_term_id,
-    } = req.query;
+    let { page, limit, sortField, sortOrder, search, payment_term_id, v_type } =
+      req.query;
     page = parseInt(page, 10) || 1;
     limit = parseInt(limit, 10) || 100;
     sortField = sortField || "created_at";
@@ -172,40 +162,21 @@ const getVendors = async (req, res, next) => {
           queryParams.length + 1
         } OR vendor_display_name ILIKE $${
           queryParams.length + 1
-        } OR first_name ILIKE $${queryParams.length + 1})`
+        } OR first_name ILIKE $${queryParams.length + 1} OR last_name ILIKE $${
+          queryParams.length + 1
+        })`
       );
       queryParams.push(`%${search}%`);
-    }
-
-    if (first_name) {
-      whereClauses.push(
-        `LOWER(first_name) = LOWER($${queryParams.length + 1})`
-      );
-      queryParams.push(first_name);
-    }
-
-    if (last_name) {
-      whereClauses.push(`LOWER(last_name) = LOWER($${queryParams.length + 1})`);
-      queryParams.push(last_name);
-    }
-
-    if (vendor_display_name) {
-      whereClauses.push(
-        `LOWER(vendor_display_name) = LOWER($${queryParams.length + 1})`
-      );
-      queryParams.push(vendor_display_name);
-    }
-
-    if (company_name) {
-      whereClauses.push(
-        `LOWER(company_name) = LOWER($${queryParams.length + 1})`
-      );
-      queryParams.push(company_name);
     }
 
     if (payment_term_id) {
       whereClauses.push(`payment_term_id = $${queryParams.length + 1}`);
       queryParams.push(payment_term_id);
+    }
+
+    if (v_type) {
+      whereClauses.push(`v_type = $${queryParams.length + 1}`);
+      queryParams.push(v_type.toUpperCase());
     }
 
     let whereClause =
