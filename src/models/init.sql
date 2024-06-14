@@ -83,10 +83,10 @@ CREATE TABLE IF NOT EXISTS item (
 );
 
 CREATE TABLE IF NOT EXISTS item_preferred_vendor (
-    item_id UUID REFERENCES item (id),
-    vendor_id UUID REFERENCES vendor (id),
-    PRIMARY KEY (item_id, vendor_id)
-);
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+    item_id UUID REFERENCES item (id) ON DELETE CASCADE,
+    vendor_id UUID REFERENCES vendor (id) ON DELETE CASCADE
+    );
 
 CREATE TABLE IF NOT EXISTS purchase_items(
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
@@ -226,7 +226,7 @@ CREATE TABLE IF NOT EXISTS purchase_receives (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   purchase_order_id UUID NOT NULL REFERENCES purchase_order(id),
   purchase_received_number VARCHAR(255) UNIQUE,
-  vendor_id UUID NOT NULL REFERENCES vendor(id),
+  vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
   item_id UUID NOT NULL,
   total_quantity INTEGER NOT NULL,
   quantity_received INTEGER NOT NULL,
