@@ -3,15 +3,15 @@ const Joi = require("joi");
 const vendorSchema = {
   createVendor: Joi.object({
     v_type: Joi.string().valid("SUPPLIER", "STORE").required().messages({
-      "any.only": "v_type must be one of SUPPLIER or STORE",
-      "any.required": "v_type is required",
+      "any.only": " Vendor Type must be one of SUPPLIER or STORE",
+      "any.required": "Vendor Type is required",
     }),
     provider_type: Joi.string()
       .valid("SERVICE", "PRODUCTS")
       .required()
       .messages({
-        "any.only": "provider_type must be one of SERVICE or PRODUCTS",
-        "any.required": "provider_type is required",
+        "any.only": "Provider Typs must be one of SERVICE or PRODUCTS",
+        "any.required": "Provider Type is required",
       }),
     first_name: Joi.string()
       .when("v_type", {
@@ -64,9 +64,9 @@ const vendorSchema = {
         "string.guid": "payment_term_id must be a valid UUID",
       }),
     contact_person: Joi.string().allow(null, ""),
-    document: Joi.object().allow(null, ""),
-    cnic_front_img: Joi.object().allow(null, ""),
-    cnic_back_img: Joi.object().allow(null, ""),
+    document: Joi.string().allow(null, ""),
+    cnic_front_img: Joi.string().allow(null, ""),
+    cnic_back_img: Joi.string().allow(null, ""),
   }),
 };
 
