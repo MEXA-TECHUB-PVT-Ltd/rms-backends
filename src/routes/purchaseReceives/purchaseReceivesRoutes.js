@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const {
     purchaseReceives
-} = require("../../controller/purchaseReceives/purchaseReceivesController");
+} = require("../../controller/PurchaseReceives/purchaseReceivesController");
 
 const router = Router();
 

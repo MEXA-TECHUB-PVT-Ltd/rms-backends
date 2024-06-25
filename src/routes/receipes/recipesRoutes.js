@@ -5,7 +5,7 @@ const {
     specificRecipe,
     updateRecipe,
     deleteRecipe
-} = require("../../controller/receipes/recipeController");
+} = require("../../controller/Receipes/recipeController");
 
 const router = Router();
 

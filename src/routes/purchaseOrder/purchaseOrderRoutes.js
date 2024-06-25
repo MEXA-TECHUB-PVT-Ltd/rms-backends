@@ -2,7 +2,7 @@ const { Router } = require("express");
 const {
     purchaseOrder,
     updateVendorPOSendingStatus
-} = require("../../controller/purchaseOrder/purchaseOrderController");
+} = require("../../controller/PurchaseOrder/purchaseOrderController");
 
 const router = Router();
 

@@ -152,6 +152,7 @@ const getVendors = async (req, res, next) => {
       sortOrder,
       search,
       first_name,
+      last_name,
       vendor_display_name,
       company_name,
       payment_term_id,
@@ -167,10 +168,8 @@ const getVendors = async (req, res, next) => {
 
     if (search) {
       whereClauses.push(
-        `(company_name ILIKE $${
-          queryParams.length + 1
-        } OR vendor_display_name ILIKE $${
-          queryParams.length + 1
+        `(company_name ILIKE $${queryParams.length + 1
+        } OR vendor_display_name ILIKE $${queryParams.length + 1
         } OR first_name ILIKE $${queryParams.length + 1})`
       );
       queryParams.push(`%${search}%`);
