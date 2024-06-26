@@ -2,7 +2,7 @@ const { Router } = require("express");
 const {
     uploadFile,
     deleteFile
-} = require("../../controller/FileUpload/fileUploadController");
+} = require("../../controller/Uploadfile/uploadFileController");
 
 const upload = require("../../middleware/multer");
 
