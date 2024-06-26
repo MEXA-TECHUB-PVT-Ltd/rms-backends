@@ -145,6 +145,7 @@ const getVendor = async (req, res, next) => {
 
 const getVendors = async (req, res, next) => {
   try {
+ 
     let {
       page,
       limit,
@@ -157,6 +158,10 @@ const getVendors = async (req, res, next) => {
       company_name,
       payment_term_id,
     } = req.query;
+ 
+    let { page, limit, sortField, sortOrder, search, payment_term_id, v_type } =
+      req.query;
+ 
     page = parseInt(page, 10) || 1;
     limit = parseInt(limit, 10) || 100;
     sortField = sortField || "created_at";
@@ -168,42 +173,31 @@ const getVendors = async (req, res, next) => {
 
     if (search) {
       whereClauses.push(
+ 
         `(company_name ILIKE $${queryParams.length + 1
         } OR vendor_display_name ILIKE $${queryParams.length + 1
         } OR first_name ILIKE $${queryParams.length + 1})`
+ 
+        `(company_name ILIKE $${
+          queryParams.length + 1
+        } OR vendor_display_name ILIKE $${
+          queryParams.length + 1
+        } OR first_name ILIKE $${queryParams.length + 1} OR last_name ILIKE $${
+          queryParams.length + 1
+        })`
+ 
       );
       queryParams.push(`%${search}%`);
-    }
-
-    if (first_name) {
-      whereClauses.push(
-        `LOWER(first_name) = LOWER($${queryParams.length + 1})`
-      );
-      queryParams.push(first_name);
-    }
-
-    if (last_name) {
-      whereClauses.push(`LOWER(last_name) = LOWER($${queryParams.length + 1})`);
-      queryParams.push(last_name);
-    }
-
-    if (vendor_display_name) {
-      whereClauses.push(
-        `LOWER(vendor_display_name) = LOWER($${queryParams.length + 1})`
-      );
-      queryParams.push(vendor_display_name);
-    }
-
-    if (company_name) {
-      whereClauses.push(
-        `LOWER(company_name) = LOWER($${queryParams.length + 1})`
-      );
-      queryParams.push(company_name);
     }
 
     if (payment_term_id) {
       whereClauses.push(`payment_term_id = $${queryParams.length + 1}`);
       queryParams.push(payment_term_id);
+    }
+
+    if (v_type) {
+      whereClauses.push(`v_type = $${queryParams.length + 1}`);
+      queryParams.push(v_type.toUpperCase());
     }
 
     let whereClause =
@@ -486,12 +480,13 @@ const deleteVendor = async (req, res, next) => {
       return responseSender(res, 404, false, "Vendor Not Found");
     }
 
-    if (rows[0].document.public_id) {
+    if (rows[0]?.document?.public_id) {
       await deleteCloudinaryFile(rows[0].document.public_id);
     }
 
     return responseSender(res, 200, true, "Vendor Deleted", rows[0]);
-  } catch {
+  } catch (error) {
+    console.log(error);
     next(error);
   }
 };
