@@ -145,8 +145,23 @@ const getVendor = async (req, res, next) => {
 
 const getVendors = async (req, res, next) => {
   try {
+ 
+    let {
+      page,
+      limit,
+      sortField,
+      sortOrder,
+      search,
+      first_name,
+      last_name,
+      vendor_display_name,
+      company_name,
+      payment_term_id,
+    } = req.query;
+ 
     let { page, limit, sortField, sortOrder, search, payment_term_id, v_type } =
       req.query;
+ 
     page = parseInt(page, 10) || 1;
     limit = parseInt(limit, 10) || 100;
     sortField = sortField || "created_at";
@@ -158,6 +173,11 @@ const getVendors = async (req, res, next) => {
 
     if (search) {
       whereClauses.push(
+ 
+        `(company_name ILIKE $${queryParams.length + 1
+        } OR vendor_display_name ILIKE $${queryParams.length + 1
+        } OR first_name ILIKE $${queryParams.length + 1})`
+ 
         `(company_name ILIKE $${
           queryParams.length + 1
         } OR vendor_display_name ILIKE $${
@@ -165,6 +185,7 @@ const getVendors = async (req, res, next) => {
         } OR first_name ILIKE $${queryParams.length + 1} OR last_name ILIKE $${
           queryParams.length + 1
         })`
+ 
       );
       queryParams.push(`%${search}%`);
     }
