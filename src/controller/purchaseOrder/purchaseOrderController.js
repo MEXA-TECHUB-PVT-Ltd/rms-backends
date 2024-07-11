@@ -148,19 +148,12 @@ const purchaseOrder = async (req, res, next) => {
 const storePreferredVendors = async (orders) => {
     try {
         for (const order of orders) {
-
-
-
             for (const item of order.purchase_items) {
-
-                console.log(order.purchase_items);
-
                 for (const vendor of item.preferred_vendors) {
-
                     await pool.query(
                         `INSERT INTO purchase_order_preferred_vendors (purchase_order_id, purchase_item_id, vendor_id)
                         VALUES ($1, $2, $3)
-                        ON CONFLICT DO NOTHING`, // This prevents duplicate entries if the same vendor is already stored for this purchase order item
+                        ON CONFLICT (purchase_order_id, purchase_item_id, vendor_id) DO NOTHING`,
                         [order.purchase_order_id, item.id, vendor.id]
                     );
                 }
@@ -226,7 +219,61 @@ const updateVendorPOSendingStatus = async (req, res, next) => {
     }
 };
 
+const purchaseOrderv2 = async (req, res, next) => {
+    const perPage = Number.parseInt(req.query.perPage) || 10;
+    const currentPage = Number.parseInt(req.query.currentPage) || 1;
+
+    try {
+        const totalCountResult = await pool.query(`SELECT COUNT(*) FROM purchase_order`);
+        const totalItems = parseInt(totalCountResult.rows[0].count);
+
+        const offset = (currentPage - 1) * perPage;
+
+        const { rows: allOrders } = await pool.query(
+            `SELECT po.id as purchase_order_id, po.purchase_order_number, po.purchase_requisition_id, po.created_at, po.updated_at, po.status,
+                    pr.pr_number, pr.pr_detail, pr.priority, pr.requested_by, pr.requested_date, pr.required_date, pr.shipment_preferences,
+                    pr.document, pr.delivery_address, pr.purchase_item_ids, pr.total_amount
+            FROM purchase_order po
+            JOIN purchase_requisition pr ON po.purchase_requisition_id = pr.id
+            LIMIT $1 OFFSET $2`,
+            [perPage, offset]
+        );
+
+        // Fetch purchase items and vendor details for each order
+        for (const order of allOrders) {
+            const { rows: purchaseItems } = await pool.query(
+                `SELECT * FROM purchase_items WHERE id = ANY($1::uuid[])`,
+                [order.purchase_item_ids]
+            );
+
+            for (const item of purchaseItems) {
+                const preferredVendorIds = item.preffered_vendor_ids;
+
+                if (preferredVendorIds.length > 0) {
+                    const { rows: vendors } = await pool.query(
+                        `SELECT * FROM vendor WHERE id = ANY($1::uuid[])`,
+                        [preferredVendorIds]
+                    );
+                    item.preferred_vendors = vendors;
+                } else {
+                    item.preferred_vendors = [];
+                }
+            }
+
+            order.purchase_items = purchaseItems;
+        }
+
+        const paginationInfo = pagination(totalItems, perPage, currentPage);
+
+        return responseSender(res, 200, true, "Purchase orders fetched", { count: totalItems, orders: allOrders });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     purchaseOrder,
-    updateVendorPOSendingStatus
+    updateVendorPOSendingStatus,
+    purchaseOrderv2
 };
