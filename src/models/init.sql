@@ -215,12 +215,13 @@ CREATE TABLE
     UNIQUE(purchase_requisition_id)
 ); 
 
-CREATE TABLE  IF NOT EXISTS purchase_order_preferred_vendors (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+CREATE TABLE IF NOT EXISTS purchase_order_preferred_vendors (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     purchase_order_id UUID NOT NULL,
     purchase_item_id UUID NOT NULL,
-    vendor_id UUID NOT NULL 
-); 
+    vendor_id UUID NOT NULL,
+    UNIQUE (purchase_order_id, purchase_item_id, vendor_id)
+);
 
 CREATE TABLE IF NOT EXISTS purchase_receives (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -236,4 +237,5 @@ CREATE TABLE IF NOT EXISTS purchase_receives (
   remaining_item INTEGER,
   received_date DATE NOT NULL,
   description TEXT
-);
+); 
+ 
