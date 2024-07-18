@@ -272,8 +272,62 @@ const purchaseOrderv2 = async (req, res, next) => {
     }
 };
 
+const getPurchaseOrderDetails = async (req, res, next) => {
+    const { purchase_order_id } = req.query;
+
+    if (!purchase_order_id) {
+        return responseSender(res, 404, false, `Purchase order ID is required.`);
+    }
+
+    try {
+        const { rows: purchaseOrderRows } = await pool.query(
+            `SELECT po.id as purchase_order_id, po.purchase_order_number, po.purchase_requisition_id, po.created_at, po.updated_at, po.status,
+                pr.pr_number, pr.pr_detail, pr.priority, pr.requested_by, pr.requested_date, pr.required_date, pr.shipment_preferences,
+                pr.document, pr.delivery_address, pr.purchase_item_ids, pr.total_amount
+         FROM purchase_order po
+         JOIN purchase_requisition pr ON po.purchase_requisition_id = pr.id
+         WHERE po.id = $1`,
+            [purchase_order_id]
+        );
+
+        if (purchaseOrderRows.length === 0) {
+            return responseSender(res, 404, false, 'Purchase order not found.');
+        }
+
+        const purchaseOrder = purchaseOrderRows[0];
+
+        const { rows: purchaseItems } = await pool.query(
+            `SELECT * FROM purchase_items WHERE id = ANY($1::uuid[])`,
+            [purchaseOrder.purchase_item_ids]
+        );
+
+        for (const item of purchaseItems) {
+            const preferredVendorIds = item.preffered_vendor_ids;
+
+            if (preferredVendorIds.length > 0) {
+                const { rows: vendors } = await pool.query(
+                    `SELECT * FROM vendor WHERE id = ANY($1::uuid[])`,
+                    [preferredVendorIds]
+                );
+                item.preferred_vendors = vendors;
+            } else {
+                item.preferred_vendors = [];
+            }
+        }
+
+        purchaseOrder.purchase_items = purchaseItems;
+
+        return responseSender(res, 200, true, "Purchase order details fetched", { result: purchaseOrder });
+
+    } catch (error) {
+        console.error('Error fetching purchase order details', error.stack);
+        next(error);
+    }
+};
+
 module.exports = {
     purchaseOrder,
     updateVendorPOSendingStatus,
-    purchaseOrderv2
+    purchaseOrderv2,
+    getPurchaseOrderDetails
 };
