@@ -384,6 +384,82 @@ const getPurchaseReceiveDetails = async (req, res, next) => {
   }
 };
 
+// const getPurchaseReceiveDetails = async (req, res, next) => {
+//   const purchaseReceiveId = req.query.purchase_receive_id;
+
+//   if (!purchaseReceiveId) {
+//     return responseSender(res, 404, false, "purchase_receive_id query parameter is required");
+//   }
+
+//   try {
+//     const client = await pool.connect();
+
+//     // Fetch purchase receive details
+//     const purchaseReceiveQuery = `
+//       SELECT * FROM purchase_receives WHERE id = $1;
+//     `;
+//     const purchaseReceiveResult = await client.query(purchaseReceiveQuery, [purchaseReceiveId]);
+//     const purchaseReceive = purchaseReceiveResult.rows[0];
+
+//     if (!purchaseReceive) {
+//       return responseSender(res, 404, false, "Purchase receive not found");
+//     }
+
+//     // Fetch purchase order details
+//     const purchaseOrderQuery = `
+//       SELECT * FROM purchase_order WHERE id = $1;
+//     `;
+//     const purchaseOrderResult = await client.query(purchaseOrderQuery, [purchaseReceive.purchase_order_id]);
+//     const purchaseOrder = purchaseOrderResult.rows[0];
+
+//     // Fetch vendor details
+//     const vendorQuery = `
+//       SELECT * FROM vendor WHERE id = $1;
+//     `;
+//     const vendorResult = await client.query(vendorQuery, [purchaseReceive.vendor_id]);
+//     const vendor = vendorResult.rows[0];
+
+//     // Fetch purchase item details
+//     const purchaseItemQuery = `
+//       SELECT * FROM purchase_items WHERE id = $1;
+//     `;
+//     const purchaseItemResult = await client.query(purchaseItemQuery, [purchaseReceive.item_id]);
+//     const purchaseItem = purchaseItemResult.rows[0];
+
+//     // Fetch item details
+//     const itemQuery = `
+//       SELECT * FROM item WHERE id = $1;
+//     `;
+//     const itemResult = await client.query(itemQuery, [purchaseItem.item_id]);
+//     const itemDetails = itemResult.rows[0];
+
+//     // Fetch preferred vendor details for the item
+//     const preferredVendors = [];
+//     for (const vendorId of purchaseItem.preffered_vendor_ids) {
+//       const preferredVendorQuery = `
+//         SELECT * FROM vendor WHERE id = $1;
+//       `;
+//       const preferredVendorResult = await client.query(preferredVendorQuery, [vendorId]);
+//       const preferredVendor = preferredVendorResult.rows[0];
+//       preferredVendors.push(preferredVendor);
+//     }
+
+//     // Attach details to the purchase receive
+//     purchaseReceive.purchase_order = purchaseOrder;
+//     // purchaseReceive.purchase_order.vendor = vendor;
+//     purchaseReceive.purchase_item = purchaseItem;
+//     purchaseReceive.item_details = itemDetails;
+//     purchaseReceive.purchase_item.preferred_vendors = preferredVendors;
+
+//     client.release();
+
+//     return responseSender(res, 200, true, "Purchase receive details fetched", purchaseReceive);
+
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
 module.exports = {
   purchaseReceives,
   cancelPurchaseOrder,
