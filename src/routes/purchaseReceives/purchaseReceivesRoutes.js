@@ -10,7 +10,7 @@ const router = Router();
 
 router.route("/create").post(purchaseReceives);
 router.route("/cancel").delete(cancelPurchaseOrder);
-router.route("/get/all").get(getPurchaseReceives); 
-router.route("/specific/get").get(getPurchaseReceiveDetails);    
+router.route("/get/all").get(getPurchaseReceives);
+router.route("/specific/get").get(getPurchaseReceiveDetails);
 
 module.exports = router;
