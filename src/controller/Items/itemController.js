@@ -11,27 +11,27 @@ const createItem = async (req, res, next) => {
     }
 
     if (type === 'PRODUCT') {
-        if (!name || !product_category || !product_units || !product_catalog || !usage_unit || !image || !vendor_id || !stock_in_hand || !opening_stock_rate || !reorder_unit || !inventory_description) {
+        if (!name || !product_category || !product_units || !product_catalog || !usage_unit || !vendor_id) {
             return responseSender(res, 422, false, "Missing required product attributes.");
         }
         // Check if there are any extra attributes present
-        const extraAttributes = Object.keys(req.body).filter(attr =>
-            !['type', 'name', 'product_category', 'product_units', 'usage_unit', 'product_catalog', 'image', 'vendor_id', 'stock_in_hand', 'opening_stock_rate', 'reorder_unit', 'inventory_description'].includes(attr)
-        );
-        if (extraAttributes.length > 0) {
-            return responseSender(res, 422, false, "Invalid attributes for PRODUCT type.");
-        }
+        // const extraAttributes = Object.keys(req.body).filter(attr =>
+        //     !['type', 'name', 'product_category', 'product_units', 'usage_unit', 'product_catalog', 'image', 'vendor_id'].includes(attr)
+        // );
+        // if (extraAttributes.length > 0) {
+        //     return responseSender(res, 422, false, "Invalid attributes for PRODUCT type.");
+        // }
     } else if (type === 'SERVICE') {
         if (!name || !vendor_id || !description) {
             return responseSender(res, 422, false, "Missing required service attributes.");
         }
         // Check if there are any extra attributes present
-        const extraAttributes = Object.keys(req.body).filter(attr =>
-            !['type', 'name', 'vendor_id', 'description'].includes(attr)
-        );
-        if (extraAttributes.length > 0) {
-            return responseSender(res, 422, false, "Invalid attributes for SERVICE type.");
-        }
+        // const extraAttributes = Object.keys(req.body).filter(attr =>
+        //     !['type', 'name', 'vendor_id', 'description'].includes(attr)
+        // );
+        // if (extraAttributes.length > 0) {
+        //     return responseSender(res, 422, false, "Invalid attributes for SERVICE type.");
+        // }
     }
 
     try {
@@ -155,8 +155,11 @@ const itemList = async (req, res, next) => {
             fetchQuery += ` WHERE ${whereClause}`;
         }
 
-        const countResult = await pool.query(countQuery, queryParams);
-        const totalItems = Number.parseInt(countResult.rows[0].count);
+        // Add GROUP BY clause to fetch query
+        fetchQuery += ` GROUP BY i.id, pc.name, u1.unit, u2.unit`;
+
+        // Add ORDER BY clause for sorting
+        fetchQuery += ` ORDER BY i.created_at DESC`;
 
         // Calculate offset for pagination
         const offset = (currentPage - 1) * perPage;
@@ -164,10 +167,14 @@ const itemList = async (req, res, next) => {
         // Fetch paginated data
         let result;
         if (queryParams.length > 0) {
-            result = await pool.query(fetchQuery + ' GROUP BY i.id, pc.name, u1.unit, u2.unit LIMIT $' + (queryParams.length + 1) + ' OFFSET $' + (queryParams.length + 2), [...queryParams, perPage, offset]);
+            result = await pool.query(fetchQuery + ' LIMIT $' + (queryParams.length + 1) + ' OFFSET $' + (queryParams.length + 2), [...queryParams, perPage, offset]);
         } else {
-            result = await pool.query(fetchQuery + ' GROUP BY i.id, pc.name, u1.unit, u2.unit LIMIT $1 OFFSET $2', [perPage, offset]);
+            result = await pool.query(fetchQuery + ' LIMIT $1 OFFSET $2', [perPage, offset]);
         }
+
+        // Fetch the total count of items
+        const countResult = await pool.query(countQuery, queryParams);
+        const totalItems = parseInt(countResult.rows[0].count, 10);
 
         // Generate pagination info
         const paginationInfo = pagination(totalItems, perPage, currentPage);
