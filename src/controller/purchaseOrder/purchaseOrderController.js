@@ -229,6 +229,7 @@ const purchaseOrderv2 = async (req, res, next) => {
 
         const offset = (currentPage - 1) * perPage;
 
+        // Fetch purchase orders with related purchase requisition details
         const { rows: allOrders } = await pool.query(
             `SELECT po.id as purchase_order_id, po.purchase_order_number, po.purchase_requisition_id, po.created_at, po.updated_at, po.status,
                     pr.pr_number, pr.pr_detail, pr.priority, pr.requested_by, pr.requested_date, pr.required_date, pr.shipment_preferences,
@@ -239,28 +240,61 @@ const purchaseOrderv2 = async (req, res, next) => {
             [perPage, offset]
         );
 
-        // Fetch purchase items and vendor details for each order
+        // Collect all purchase item IDs and preferred vendor IDs
+        const itemIds = [];
+        const vendorIds = new Set();
+
         for (const order of allOrders) {
-            const { rows: purchaseItems } = await pool.query(
-                `SELECT * FROM purchase_items WHERE id = ANY($1::uuid[])`,
-                [order.purchase_item_ids]
-            );
+            itemIds.push(...order.purchase_item_ids);
+        }
 
-            for (const item of purchaseItems) {
-                const preferredVendorIds = item.preffered_vendor_ids;
+        // Fetch purchase items
+        const { rows: purchaseItems } = await pool.query(
+            `SELECT * FROM purchase_items WHERE id = ANY($1::uuid[])`,
+            [itemIds]
+        );
 
-                if (preferredVendorIds.length > 0) {
-                    const { rows: vendors } = await pool.query(
-                        `SELECT * FROM vendor WHERE id = ANY($1::uuid[])`,
-                        [preferredVendorIds]
+        // Collect vendor IDs for each item
+        const itemsWithVendors = [];
+        const vendorDetailsMap = new Map();
+
+        for (const item of purchaseItems) {
+            const preferredVendorIds = item.preffered_vendor_ids || [];
+            const vendors = [];
+
+            for (const vendorId of preferredVendorIds) {
+                vendorIds.add(vendorId);
+
+                // Retrieve vendor details if not already fetched
+                if (!vendorDetailsMap.has(vendorId)) {
+                    const { rows: vendorDetails } = await pool.query(
+                        `SELECT * FROM vendor WHERE id = $1`,
+                        [vendorId]
                     );
-                    item.preferred_vendors = vendors;
-                } else {
-                    item.preferred_vendors = [];
+                    vendorDetailsMap.set(vendorId, vendorDetails[0]);
                 }
+
+                vendors.push(vendorDetailsMap.get(vendorId));
             }
 
-            order.purchase_items = purchaseItems;
+            itemsWithVendors.push({
+                ...item,
+                preferred_vendors: vendors
+            });
+        }
+
+        // Add purchase items with vendor details to each order
+        for (const order of allOrders) {
+            const itemsForOrder = itemsWithVendors.filter(item => order.purchase_item_ids.includes(item.id));
+            order.purchase_items = itemsForOrder;
+        }
+
+        // Convert vendor IDs set to an array
+        const vendorIdsArray = Array.from(vendorIds);
+
+        // Add vendors_ids to each order
+        for (const order of allOrders) {
+            order.vendors_ids = vendorIdsArray;
         }
 
         const paginationInfo = pagination(totalItems, perPage, currentPage);
@@ -284,9 +318,9 @@ const getPurchaseOrderDetails = async (req, res, next) => {
             `SELECT po.id as purchase_order_id, po.purchase_order_number, po.purchase_requisition_id, po.created_at, po.updated_at, po.status,
                 pr.pr_number, pr.pr_detail, pr.priority, pr.requested_by, pr.requested_date, pr.required_date, pr.shipment_preferences,
                 pr.document, pr.delivery_address, pr.purchase_item_ids, pr.total_amount
-         FROM purchase_order po
-         JOIN purchase_requisition pr ON po.purchase_requisition_id = pr.id
-         WHERE po.id = $1`,
+            FROM purchase_order po
+            JOIN purchase_requisition pr ON po.purchase_requisition_id = pr.id
+            WHERE po.id = $1`,
             [purchase_order_id]
         );
 
@@ -302,6 +336,22 @@ const getPurchaseOrderDetails = async (req, res, next) => {
         );
 
         for (const item of purchaseItems) {
+            // Fetch item details including category name
+            const { rows: itemDetails } = await pool.query(
+                `SELECT i.id, i.name, i.type, i.image, c.category_name 
+                 FROM item i
+                 LEFT JOIN category c ON i.product_category = c.id
+                 WHERE i.id = $1`,
+                [item.item_id]
+            );
+
+            if (itemDetails.length > 0) {
+                item.item_details = itemDetails[0];
+            } else {
+                item.item_details = null;
+            }
+
+            // Fetch preferred vendors
             const preferredVendorIds = item.preffered_vendor_ids;
 
             if (preferredVendorIds.length > 0) {
@@ -325,9 +375,65 @@ const getPurchaseOrderDetails = async (req, res, next) => {
     }
 };
 
+const deletePurchaseOrder = async (req, res, next) => {
+    const { purchase_order_id } = req.query;
+
+    if (!purchase_order_id) {
+        return responseSender(res, 404, false, "Purchase order ID is required.");
+    }
+
+    try {
+        // Start transaction
+        await pool.query('BEGIN');
+
+        // Fetch purchase requisition ID and status from the purchase order
+        const { rows: purchaseOrderRows } = await pool.query(
+            `SELECT purchase_requisition_id, status FROM purchase_order WHERE id = $1`,
+            [purchase_order_id]
+        );
+
+        if (purchaseOrderRows.length === 0) {
+            await pool.query('ROLLBACK');
+            return responseSender(res, 404, false, 'Purchase order not found.');
+        }
+
+        const { purchase_requisition_id, status } = purchaseOrderRows[0];
+
+        // Check if the status is 'DRAFT'
+        if (status !== 'DRAFT') {
+            await pool.query('ROLLBACK');
+            return responseSender(res, 400, false, 'Only purchase orders with status DRAFT can be deleted.');
+        }
+
+        // Delete the purchase order
+        await pool.query(
+            `DELETE FROM purchase_order WHERE id = $1`,
+            [purchase_order_id]
+        );
+
+        // Update the status of the purchase requisition to 'REJECTED'
+        await pool.query(
+            `UPDATE purchase_requisition SET status = 'REJECTED' WHERE id = $1`,
+            [purchase_requisition_id]
+        );
+
+        // Commit transaction
+        await pool.query('COMMIT');
+
+        return responseSender(res, 200, true, "Purchase order deleted successfully");
+
+    } catch (error) {
+        // Rollback transaction in case of error
+        await pool.query('ROLLBACK');
+        console.error('Error deleting purchase order', error.stack);
+        next(error);
+    }
+};
+
 module.exports = {
     purchaseOrder,
     updateVendorPOSendingStatus,
     purchaseOrderv2,
-    getPurchaseOrderDetails
+    getPurchaseOrderDetails,
+    deletePurchaseOrder
 };

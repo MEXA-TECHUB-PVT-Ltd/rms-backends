@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS category (
     category_name VARCHAR(50),
     created_at TIMESTAMP DEFAULT NOW (),
     updated_at TIMESTAMP DEFAULT NOW ()
-);
+);  
 
 
 CREATE TABLE IF NOT EXISTS pr_comments (
