@@ -53,23 +53,15 @@ const unitsList = async (req, res, next) => {
         // Fetch all units
         const result = await pool.query('SELECT * FROM units');
 
-        // Organize units by category
-        const unitsByCategory = {};
-
-        for (const unit of result.rows) {
-            if (!unitsByCategory[unit.category]) {
-                unitsByCategory[unit.category] = [];
-            }
-            unitsByCategory[unit.category].push(unit);
-            // });
-        }
+        // Get the units as a single array
+        const units = result.rows;
 
         // Count total units
-        const totalUnits = result.rows.length;
+        const totalUnits = units.length;
 
         return responseSender(res, 200, true, "Units fetched", {
             count: totalUnits,
-            unitsByCategory: unitsByCategory
+            units: units
         });
     } catch (error) {
         next(error);

@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS item (
     opening_stock_rate INT NOT NULL,
     reorder_unit INT NOT NULL,
     inventory_description VARCHAR(50),
-    image VARCHAR(50),
+    image TEXT,
     created_at TIMESTAMP DEFAULT NOW (),
     updated_at TIMESTAMP DEFAULT NOW ()
 );
@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS category (
     category_name VARCHAR(50),
     created_at TIMESTAMP DEFAULT NOW (),
     updated_at TIMESTAMP DEFAULT NOW ()
-);
+);  
 
 
 CREATE TABLE IF NOT EXISTS pr_comments (
