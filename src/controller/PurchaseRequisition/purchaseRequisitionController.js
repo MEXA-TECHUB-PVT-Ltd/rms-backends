@@ -135,13 +135,19 @@ const getPurchaseRequisition = async (req, res, next) => {
   try {
     const { rows, rowCount } = await pool.query(
       `SELECT pr.*, 
-      json_agg(
+        json_agg(
           json_build_object(
               'id', pi.id, 
               'item_id', pi.item_id, 
               'available_stock', pi.available_stock, 
               'required_quantity', pi.required_quantity, 
               'price', pi.price, 
+              'item_detail', json_build_object(
+                  'name', i.name,
+                  'image', i.image,
+                  'category', c.category_name,
+                  'type', i.type
+              ),
               'preffered_vendor', (
                   SELECT json_agg(
                       json_build_object(
@@ -156,11 +162,15 @@ const getPurchaseRequisition = async (req, res, next) => {
               )
           )
       ) AS items_detail 
-  FROM purchase_requisition pr 
-  LEFT JOIN purchase_items pi 
-  ON pi.id::text = ANY(pr.purchase_item_ids) 
-  WHERE pr.id = $1
-  GROUP BY pr.id`,
+      FROM purchase_requisition pr 
+      LEFT JOIN purchase_items pi 
+      ON pi.id::text = ANY(pr.purchase_item_ids) 
+      LEFT JOIN item i 
+      ON pi.item_id = i.id
+      LEFT JOIN category c 
+      ON i.product_category = c.id
+      WHERE pr.id = $1
+      GROUP BY pr.id`,
       [id]
     );
 
@@ -281,7 +291,12 @@ LIMIT $1 OFFSET $2;
 
     return responseSender(res, 200, true, "Purchase Requisition Retrieved", {
       p_requisitions: rows,
-      pagination: pagination(totalRowsResult.rows[0].count, limit, page),
+      pagination: {
+        totalItems: parseInt(totalRowsResult.rows[0].count, 10),
+        totalPages: Math.ceil(totalRowsResult.rows[0].count / limit),
+        page,
+        limit,
+      },
       totalCount: totalRowsResult.rows[0].count,
     });
   } catch (error) {
